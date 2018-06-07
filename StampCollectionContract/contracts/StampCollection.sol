@@ -126,6 +126,30 @@ contract StampAccessControl {
     }
 }
 
+contract StampDataSource {
+        /*** DATA TYPES ***/
+    struct Stamp {
+        uint32 stampId;
+        uint16 year;
+        uint16 setId;
+        uint8  memberOfSetId;
+        uint32 totalAmount;
+        uint32 remainingAmount;
+        bytes32 name;
+        uint8 appearance;
+    }
+    
+    struct StampSet {
+        uint16 setId;
+        uint8[] membersId;
+    }
+
+    /*** STORAGE ***/
+    Stamp[] stamps;
+    StampSet[] stampSets;
+    mapping(uint32=>uint256) internal SetIdOfStamp;
+}
+
 
 
 contract ERC721BasicToken is ERC721Basic {
@@ -258,10 +282,10 @@ contract ERC721BasicToken is ERC721Basic {
     require(_to != address(0));
 
     clearApproval(_from, _tokenId);
-    // removeTokenFrom(_from, _tokenId);
-    // addTokenTo(_to, _tokenId);
+    removeTokenFrom(_from, _tokenId);
+    addTokenTo(_to, _tokenId);
 
-    // emit Transfer(_from, _to, _tokenId);
+    emit Transfer(_from, _to, _tokenId);
   }
 
   /**
@@ -410,7 +434,7 @@ contract ERC721BasicToken is ERC721Basic {
   }
 }
 
-contract ERC721TokenImplement is ERC721, ERC721BasicToken {
+contract ERC721TokenImplement is StampDataSource, ERC721, ERC721BasicToken {
   
     // Token name
     string internal name_ = "StampToken";
@@ -578,8 +602,8 @@ contract ERC721TokenImplement is ERC721, ERC721BasicToken {
   }
 }
 
-contract StampBase is StampAccessControl, ERC721TokenImplement {
-    event ReleaseNewStamp(uint32 stampId, 
+contract StampBase is StampDataSource, StampAccessControl, ERC721TokenImplement{
+    event CreateNewStamp(uint32 stampId, 
                             uint32 totalAmount, 
                             uint32 remainingAmount, 
                             bytes32 name,
@@ -589,33 +613,7 @@ contract StampBase is StampAccessControl, ERC721TokenImplement {
                             uint8 appearance
                             );
 
-    /*** DATA TYPES ***/
-    struct Stamp {
-        uint32 stampId;
-        uint16 year;
-        uint16 setId;
-        uint8  memberOfSetId;
-        uint32 totalAmount;
-        uint32 remainingAmount;
-        bytes32 name;
-        uint8 appearance;
-    }
-    
-    struct StampSet {
-        uint16 setId;
-        uint8[] membersId;
-        uint32[] stampsId;
-        uint32 totalAmount;
-        uint32 remainingAmount;
-    }
-
-    /*** STORAGE ***/
-    Stamp[] stamps;
-    StampSet[] stampSets;
-
-    SaleClockAuction public saleAuction;
-
-    function _releaseNewStamp(
+    function _createNewStamp(
         uint32 _stampId,
         uint32 _totalAmount,
         uint32 _remainingAmount,
@@ -645,17 +643,185 @@ contract StampBase is StampAccessControl, ERC721TokenImplement {
 
         require(newTokenId == uint256(uint32(newTokenId)));
 
-        emit ReleaseNewStamp(_stampId, _totalAmount, _remainingAmount,  _name, _year, _setId, _memberOfSetId, _appearance);
-
-        allTokensIndex[newTokenId] = stamps.length-1;
-        ownedTokens[address(this)].push(newTokenId);
-        ownedTokensIndex[newTokenId] = ownedTokens[address(this)].length-1;
-        ownedTokensCount[address(this)] = ownedTokens[address(this)].length;
-        tokenOwner[newTokenId] = address(this);
+        emit CreateNewStamp(_stampId, _totalAmount, _remainingAmount,  _name, _year, _setId, _memberOfSetId, _appearance);
+        
+        _mint(address(this), newTokenId);
     }
     
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
         return tokenOwner[_tokenId] == _claimant;
+    }
+}
+
+contract StampAuction is StampBase {
+    SaleClockAuction public saleAuction;
+    function setSaleAuctionAddress(address _address) external onlyCEO {
+        SaleClockAuction candidateContract = SaleClockAuction(_address);
+        require(candidateContract.isSaleClockAuction());
+        saleAuction = candidateContract;
+    }
+
+    function createSaleAuction(
+        uint256 _stampId,
+        uint256 _startingPrice,
+        uint256 _endingPrice,
+        uint256 _duration
+    )
+        external
+        whenNotPaused
+    {
+        require(_owns(msg.sender, _stampId));
+        
+        approve(saleAuction, _stampId);
+
+        saleAuction.createAuction(
+            _stampId,
+            _startingPrice,
+            _endingPrice,
+            _duration,
+            msg.sender
+        );
+    }
+}
+
+contract StampMinting is StampAuction {
+    uint256 public constant PROMO_CREATION_LIMIT = 50000;
+    uint256 public constant HISTORY_CREATION_LIMIT = 4500000;
+    uint256 public constant STAMP_STARTING_PRICE = 10 finney;
+    uint256 public constant STAMP_AUCTION_DURATION = 7 days;
+    uint256 public promoCreatedCount;
+    uint256 public stampCreatedCount;
+
+    function releaseNewStampSet(uint16 _setId, uint8[] _membersId) external onlyCOO {
+        StampSet memory _stampSet = StampSet({
+            setId:_setId,
+            membersId:_membersId
+        });
+        for(uint16 i = 0; i < _appearanceArray.length; i++) {
+            
+            SetIdOfStamp[_membersId[i]] = _setId;
+        }
+        
+        uint256 newStampSetId = stampSets.push(_stampSet);
+    }
+
+    function releaseNewPromoStampToAuction(
+        uint32 _stampId,
+        uint16 _year,
+        uint16 _setId,
+        uint8 _memberOfSetId,
+        uint32 _totalAmount,
+        uint32 _remainingAmount,
+        bytes32 _name,
+        address _owner,
+        uint8[] _appearanceArray) 
+        external 
+        onlyCOO 
+    {
+        address stampOwner = _owner;
+        if (stampOwner == address(0)) {
+             stampOwner = cooAddress;
+        }
+        require(promoCreatedCount < PROMO_CREATION_LIMIT);
+        for(uint16 i = 0; i < _appearanceArray.length; i++) {
+            promoCreatedCount++;
+            _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
+        }
+        
+    }
+
+    function releaseNewStampToAuction(
+        uint32 _stampId,
+        uint32 _totalAmount,
+        uint32 _remainingAmount,
+        bytes32 _name,
+        uint16 _year,
+        uint16 _setId,
+        uint8 _memberOfSetId,
+        uint8[] _appearanceArray
+        ) 
+        external 
+        onlyCOO 
+        {
+        require(stampCreatedCount < HISTORY_CREATION_LIMIT);
+        for(uint16 i = 0; i < _appearanceArray.length; i++) {
+            uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
+            // tokenApprovals[tokenId] = saleAuction;
+            // operatorApprovals[ceoAddress][saleAuction] = true;
+            approve(saleAuction, tokenId);
+            setApprovalForAll(saleAuction, true);
+            saleAuction.createAuction(
+                tokenId,
+                _computeStampPrice(_year, _appearanceArray.length),
+                0,
+                STAMP_AUCTION_DURATION,
+                address(this)
+            );
+
+            stampCreatedCount++;
+        }
+        
+    }
+
+    function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
+        uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
+        return price;
+    }
+}
+
+contract StampCollection is StampMinting {
+    address public newContractAddress;
+
+    constructor() public {
+        paused = true;
+        ceoAddress = msg.sender;
+        cooAddress = msg.sender;
+    }
+    
+    function setNewAddress(address _v2Address) external onlyCEO whenPaused {
+        newContractAddress = _v2Address;
+        emit ContractUpgrade(_v2Address);
+    }
+
+    function() external payable {
+        require(msg.sender == address(saleAuction));
+    }
+
+    function stampInfo(uint256 _id)
+        external
+        view
+        returns (
+        uint32 stampId,
+        uint16 year,
+        uint16 setId,
+        uint8  memberOfSetId,
+        uint32 totalAmount,
+        uint32 remainingAmount,
+        bytes32 name,
+        uint8 appearance
+    ) 
+    {
+        Stamp storage stamp = stamps[_id];
+        stampId = stamp.stampId;
+        year = stamp.year;
+        setId = stamp.setId;
+        memberOfSetId = stamp.memberOfSetId;
+        totalAmount = stamp.totalAmount;
+        remainingAmount = stamp.remainingAmount;
+        name = stamp.name;
+        appearance = stamp.appearance;
+    }
+
+    function unpause() public onlyCEO whenPaused {
+        require(saleAuction != address(0));
+        require(newContractAddress == address(0));
+
+        super.unpause();
+    }
+
+    function withdrawBalance() external onlyCFO {
+        uint256 balance = address(this).balance;
+        cfoAddress.transfer(balance);
     }
 }
 
@@ -936,14 +1102,14 @@ contract SaleClockAuction is ClockAuction {
 
         require(msg.sender == address(nonFungibleContract));
         _escrow(_seller, _tokenId);
-        // Auction memory auction = Auction(
-        //     _seller,
-        //     uint128(_startingPrice),
-        //     uint128(_endingPrice),
-        //     uint64(_duration),
-        //     uint64(now)
-        // );
-        // _addAuction(_tokenId, auction);
+        Auction memory auction = Auction(
+            _seller,
+            uint128(_startingPrice),
+            uint128(_endingPrice),
+            uint64(_duration),
+            uint64(now)
+        );
+        _addAuction(_tokenId, auction);
     }
 
     function bid(uint256 _tokenId)
@@ -954,167 +1120,4 @@ contract SaleClockAuction is ClockAuction {
         _transfer(msg.sender, _tokenId);
     }
 
-}
-
-contract StampAuction is StampBase {
-
-    function setSaleAuctionAddress(address _address) external onlyCEO {
-        SaleClockAuction candidateContract = SaleClockAuction(_address);
-        require(candidateContract.isSaleClockAuction());
-        saleAuction = candidateContract;
-    }
-
-    function createSaleAuction(
-        uint256 _stampId,
-        uint256 _startingPrice,
-        uint256 _endingPrice,
-        uint256 _duration
-    )
-        external
-        whenNotPaused
-    {
-        require(_owns(msg.sender, _stampId));
-        
-        approve(saleAuction, _stampId);
-
-        saleAuction.createAuction(
-            _stampId,
-            _startingPrice,
-            _endingPrice,
-            _duration,
-            msg.sender
-        );
-    }
-}
-
-contract StampMinting is StampAuction {
-    uint256 public constant PROMO_CREATION_LIMIT = 50000;
-    uint256 public constant HISTORY_CREATION_LIMIT = 4500000;
-    uint256 public constant STAMP_STARTING_PRICE = 10 finney;
-    uint256 public constant STAMP_AUCTION_DURATION = 7 days;
-    uint256 public promoCreatedCount;
-    uint256 public stampCreatedCount;
-
-    function createPromoStamp(
-        uint32 _stampId,
-        uint16 _year,
-        uint16 _setId,
-        uint8 _memberOfSetId,
-        uint32 _totalAmount,
-        uint32 _remainingAmount,
-        bytes32 _name,
-        address _owner,
-        uint8[] _appearanceArray) 
-        external 
-        onlyCOO 
-    {
-        address stampOwner = _owner;
-        if (stampOwner == address(0)) {
-             stampOwner = cooAddress;
-        }
-        require(promoCreatedCount < PROMO_CREATION_LIMIT);
-        for(uint16 i = 0; i < _appearanceArray.length; i++) {
-            promoCreatedCount++;
-            _releaseNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
-        }
-        
-    }
-// uint16 _year,
-//         uint16 _setId,
-//         uint8 _memberOfSetId,
-//         uint32 _totalAmount,
-//         uint32 _remainingAmount,
-//         bytes32 _name,
-//         uint8[] _appearanceArray
-    function createNewStampAuction(
-        uint32 _stampId,
-        uint32 _totalAmount,
-        uint32 _remainingAmount,
-        bytes32 _name,
-        uint16 _year,
-        uint16 _setId,
-        uint8 _memberOfSetId,
-        uint8[] _appearanceArray
-        ) 
-        external 
-        onlyCOO 
-        {
-        require(stampCreatedCount < HISTORY_CREATION_LIMIT);
-        for(uint16 i = 0; i < _appearanceArray.length; i++) {
-            uint256 tokenId = _releaseNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
-            tokenApprovals[tokenId] = saleAuction;
-            operatorApprovals[ceoAddress][saleAuction] = true;
-            saleAuction.createAuction(
-                tokenId,
-                _computeStampPrice(_year, _appearanceArray.length),
-                0,
-                STAMP_AUCTION_DURATION,
-                address(this)
-            );
-
-            stampCreatedCount++;
-        }
-        
-    }
-
-    function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
-        uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
-        return price;
-    }
-}
-
-
-contract StampCollection is StampMinting {
-    address public newContractAddress;
-
-    constructor() public {
-        paused = true;
-        ceoAddress = msg.sender;
-        cooAddress = msg.sender;
-    }
-    function setNewAddress(address _v2Address) external onlyCEO whenPaused {
-        newContractAddress = _v2Address;
-        emit ContractUpgrade(_v2Address);
-    }
-
-    function() external payable {
-        require(msg.sender == address(saleAuction));
-    }
-
-    function stampInfo(uint256 _id)
-        external
-        view
-        returns (
-        uint32 stampId,
-        uint16 year,
-        uint16 setId,
-        uint8  memberOfSetId,
-        uint32 totalAmount,
-        uint32 remainingAmount,
-        bytes32 name,
-        uint8 appearance
-    ) 
-    {
-        Stamp storage stamp = stamps[_id];
-        stampId = stamp.stampId;
-        year = stamp.year;
-        setId = stamp.setId;
-        memberOfSetId = stamp.memberOfSetId;
-        totalAmount = stamp.totalAmount;
-        remainingAmount = stamp.remainingAmount;
-        name = stamp.name;
-        appearance = stamp.appearance;
-    }
-
-    function unpause() public onlyCEO whenPaused {
-        require(saleAuction != address(0));
-        require(newContractAddress == address(0));
-
-        super.unpause();
-    }
-
-    function withdrawBalance() external onlyCFO {
-        uint256 balance = address(this).balance;
-        cfoAddress.transfer(balance);
-    }
 }
