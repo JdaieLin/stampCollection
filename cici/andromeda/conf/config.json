@@ -1,0 +1,12 @@
+{
+    "Debug":true,
+    "Mongo":{
+        "Servers":[
+            {
+                "Host":"127.0.0.1",
+                "Port":3010
+            }
+        ],
+        "Database":"andromeda"
+    }
+}

@@ -1,0 +1,8 @@
+package constant
+
+const (
+	STATUS_UNCOLLECT = 100 + iota
+	STATUS_COLLECT
+	STATUS_COLLECT_OWNER
+	STATUS_DEAL_OWNER
+)
