@@ -14,14 +14,13 @@
         @webkit-transition-end="onTransitionEnd(index)"
         @transitionend="onTransitionEnd(index)">
       <div class="img-wrap">
-        <StampWrap :imgSrc="item.imgSrc" :frame="true" :type="'large'" :padding="60" :v-padding="30"></StampWrap>
+        <StampWrap :imgSrc="item.imgSrc" :level="item.level" :frame="true" :type="'large'" :padding="60" :v-padding="30"></StampWrap>
         <div class="tag"></div>
         <div class="hq"></div>
       </div>
       <div class="stamp-info">
-        <span v-if="updateTrigger"></span>
         <div class="title">{{item.title}}, <span class="age">{{item.age}}</span></div>
-        <div class="detail"><span class="grade">品相等级: {{item.grade}}</span><span class="count">剩余量 {{item.rest}}/{{item.total}}</span></div>
+        <div class="detail"><span class="grade">品相等级: {{item.level}}</span><span class="count">剩余量 {{item.rest}}/{{item.total}}</span></div>
       </div>
     </li>
   </ul>
@@ -36,11 +35,7 @@ export default {
   },
   props: {
     stackinit: Object,
-    pages: Array,
-    updateTrigger: {
-      type: Boolean,
-      default: false
-    }
+    pages: Array
   },
   data () {
     return {

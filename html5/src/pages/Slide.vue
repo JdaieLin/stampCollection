@@ -17,19 +17,19 @@
                   style="fill:transparent;stroke:#23ce7b;stroke-width:2px"/>
       </svg>
     </div>
-    <CoinCounter :number="coinNumber" />
+    <CoinCounter :number="$store.state.Money.coins" />
     <div class="stack-wrapper"
          @touchmove.stop.prevent="touchmove"
          @touchstart.stop.prevent="touchstart"
          @touchend.stop.prevent="touchend"
          @touchcancel.stop.prevent="touchend">
-      <stack ref="stack" :pages="someList" :stackinit="stackinit" :updateTrigger="updateTrigger" @slideChange="slideChange"></stack>
+      <stack ref="stack" :pages="currentLoopList" :stackinit="stackinit" @slideChange="slideChange"></stack>
     </div>
     <div class="controls">
-      <button @click="onReverse" :class="canReverseTime>3?'active':null" class="button reverse small"></button>
-      <button @click="onBad" class="button bad"></button>
-      <button @click="onGood" class="button good"></button>
-      <button @click="onFavor" :class="isFavor?'active':null" class="button favor small"></button>
+      <button @click="onReverse" :class="$store.state.Slide.canReverseTime>0?'active':null" class="button reverse small"></button>
+      <button @click="onPressBad" class="button bad"></button>
+      <button @click="onPressGood" class="button good"></button>
+      <button @click="onCollect" :class="$store.state.Slide.currentStamp.colleted?'active':null" class="button favor small"></button>
     </div>
   </div>
 </template>
@@ -38,51 +38,14 @@
 import stack from '../components/Stack'
 import CoinCounter from '../components/CoinCounter'
 
-const preloadList = [
-  'coin.png',
-  'coin.w-shadow.png',
-  'coinCount.back.png',
-  'coinCount.shadow.png',
-  'counter.number.jpg',
-  'material.gold.jpg',
-  'menuAlbum.active.png',
-  'menuAlbum.disactive.png',
-  'menuDig.active.png',
-  'menuDig.disactive.png',
-  'menuSlide.active.png',
-  'menuSlide.disactive.png',
-  'menuTrade.active.png',
-  'menuTrade.disactive.png',
-  'menuUser.active.png',
-  'menuUser.disactive.png',
-  'opBad.active.png',
-  'opBad.active.pressed.png',
-  'opBad.disactive.png',
-  'opBad.disactive.pressed.png',
-  'opFavor.active.png',
-  'opFavor.active.pressed.png',
-  'opFavor.disactive.png',
-  'opFavor.disactive.pressed.png',
-  'opGood.active.png',
-  'opGood.active.pressed.png',
-  'opGood.disactive.png',
-  'opGood.disactive.pressed.png',
-  'opReverse.active.png',
-  'opReverse.active.pressed.png',
-  'opReverse.disactive.png',
-  'opReverse.disactive.pressed.png'
-]
-
 export default {
   name: 'Slide',
   data () {
     return {
-      someList: [],
+      currentLoopList: [],
       stackinit: {
         visible: 3
       },
-      coinNumber: 0,
-      updateTrigger: false,
       canReverseTime: 3,
       isFavor: false,
       currentPage: 0,
@@ -92,9 +55,6 @@ export default {
     }
   },
   computed: {
-    count () {
-      return this.$store.state.Counter.main
-    },
     currentPath () {
       if (!this.currentPathArray.length) {
         return ''
@@ -104,69 +64,13 @@ export default {
     }
   },
   mounted () {
-    let that = this
-    that.someList = [
-      {
-        title: '价值连城的邮票',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/1.png'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo2.jpg'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo3.jpg'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo4.jpg'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo5.jpg'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo6.jpg'
-      },
-      {
-        title: 'stamp name',
-        age: '2018',
-        grade: 98,
-        total: 300,
-        rest: 23,
-        imgSrc: '../../static/img/demo7.jpg'
-      }
-    ]
+    this.currentLoopList = this.$store.state.Slide.currentLoopList
+    let preloadList = this.$store.state.Slide.preloadList
     for (let i in preloadList) {
       let preloadImg = new Image()
       preloadImg.src = '/static/ui/' + preloadList[i]
     }
+    this.$store.dispatch('changeLoopIndex', 0)
   },
   components: {
     stack,
@@ -174,28 +78,31 @@ export default {
   },
   methods: {
     onReverse () {
-      this.$emit('reverse')
-      console.log('insert page before ', this.currentPage)
+      this.$emit('reverseSlide')
+      this.$store.dispatch('reverseSlide')
     },
-    onBad () {
+    onPressBad () {
       this.$refs.stack.$emit('prev')
+      this.$store.dispatch('setBad')
     },
-    onGood () {
+    onPressGood () {
       this.$refs.stack.$emit('next')
+      this.$store.dispatch('setGood')
     },
-    onFavor () {
+    onCollect () {
       this.isFavor = !this.isFavor
+      this.$store.dispatch('setCollect')
+      // this.$refs.stack.$emit('next')
       this.$emit('favor')
     },
+    onBuy () {
+      this.$refs.stack.$emit('next')
+    },
     slideChange (index) {
-      console.log('pageChange to', index)
       this.currentPage = index
       this.coinNumber += 10
-      // if (index !== 0) {
-      //   this.someList[index - 1].read = true
-      // } else {
-      //   this.someList[this.someList.length - 1].read = true
-      // }
+      this.$store.dispatch('changeLoopIndex', index)
+      this.$store.dispatch('coinIncreaseSlide')
     },
     touchstart (e) {
       this.drawing = true
@@ -282,10 +189,7 @@ export default {
       margin-top: 14px;
     }
     &.reverse{
-      background-image: url(/static/ui/opReverse.active.png);
-      &:active{
-        background-image: url(/static/ui/opReverse.active.pressed.png);
-      }
+      background-image: url(/static/ui/opReverse.disactive.png);
       &.active{
         background-image: url(/static/ui/opReverse.active.png);
         &:active{
