@@ -1,21 +1,605 @@
 <template>
   <div class="mid-center">
-    Trade
+    <div class="trade-tab">
+      <div class="tab-item" :class="currentTab=='buy'?'active':null" @click="switchTab('buy')">购买</div>
+      <div class="tab-item" :class="currentTab=='sell'?'active':null" @click="switchTab('sell')">出售</div>
+    </div>
+    <div class="trade-page">
+      <div class="category">
+        <div v-if="currentTab=='buy'" class="group">
+          <div class="group-label">热门</div>
+          <div class="group-item" :class="currentTag=='hot_stamp'?'active':null" @click="clickTag('hot_stamp')">热门单张</div>
+          <div class="group-item" :class="currentTag=='hot_album'?'active':null" @click="clickTag('hot_album')">热门套票</div>
+        </div>
+        <div v-if="currentTab=='buy'" class="group">
+          <div class="group-label">2018</div>
+          <div class="group-item" :class="currentTag=='xxx'?'active':null" @click="clickTag('xxx')">xxx</div>
+        </div>
+        <div v-if="currentTab=='sell'" class="group">
+          <div class="group-label">出售中</div>
+          <div class="group-item" :class="currentTag=='onsell_stamp'?'active':null" @click="clickTag('onsell_stamp')">单张</div>
+          <div class="group-item" :class="currentTag=='onsell_album'?'active':null" @click="clickTag('onsell_album')">套票</div>
+        </div>
+        <div v-if="currentTab=='sell'" class="group">
+          <div class="group-label">已出售</div>
+          <div class="group-item" :class="currentTag=='sold_stamp'?'active':null" @click="clickTag('sold_stamp')">单张</div>
+          <div class="group-item" :class="currentTag=='sold_album'?'active':null" @click="clickTag('sold_album')">套票</div>
+        </div>
+      </div>
+      <div class="trade-wrap">
+        <div class="trade-wrap--scroll">
+          <template v-if="currentTag.indexOf('_album')>0">
+            <!--邮册排列-->
+            <div v-for="(item, index) in tradeItemsAlbum" :key="'trade_' + index" class="trade-item list" @click="toggleMultiple(true)">
+              <div class="image-wrap">
+                <AlbumWrap :coverUrl="item.src"
+                           :type="'trade'"
+                           :completeCollected="item.completeCollected"></AlbumWrap>
+              </div>
+              <div class="stamp-detail">
+                <div class="name">{{item.name}}</div>
+                <div class="level">品相：{{item.level}}</div>
+                <div class="type">特种邮票</div>
+                <div class="price">{{item.price}}</div>
+              </div>
+              <div class="seller-detail" v-if="!currentTag.indexOf('sold_')">
+                <div class="seller-head"></div>
+                <div class="seller-name">seller</div>
+              </div>
+              <div v-if="currentTab=='buy'" class="btn buy">购买</div>
+              <div v-if="currentTag.indexOf('onsell_') == 0" class="btn buy">下架</div>
+              <div v-if="currentTag.indexOf('sold_') == 0" class="btn sold">已出售</div>
+            </div>
+          </template>
+          <template v-else-if="currentTag=='hot_stamp'">
+            <!--三张邮票排列-->
+            <div v-for="(item, index) in tradeItemsStamp" :key="'trade_' + index" class="trade-item stamp" @click="clickTag('xxx')">
+              <div class="image-wrap album">
+                <StampWrap :imgSrc="item.src"
+                           :type="'list'"
+                           :frame="true"
+                           :level="item.level"
+                           :padding="2"></StampWrap>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <!--邮票列表排列-->
+            <div v-for="(item, index) in tradeItemsStamp" :key="'trade_' + index" class="trade-item list">
+              <div class="stamp-list-item" @click="toggleSingle(true)">
+                <div class="image-wrap">
+                  <StampWrap :imgSrc="item.src"
+                             :type="'list'"
+                             :frame="true"
+                             :level="item.level"
+                             :padding="2"></StampWrap>
+                </div>
+                <div class="stamp-detail">
+                  <div class="name">{{item.name}}</div>
+                  <div class="level">品相：{{item.level}}</div>
+                  <div class="type">特种邮票</div>
+                  <div class="price">{{item.price}}</div>
+                </div>
+                <div class="seller-detail" v-if="!currentTag.indexOf('sold_')">
+                  <div class="seller-head"></div>
+                  <div class="seller-name">seller</div>
+                </div>
+                <div v-if="currentTab=='buy'" class="btn buy">购买</div>
+                <div v-if="currentTag.indexOf('onsell_') == 0" class="btn buy">下架</div>
+                <div v-if="currentTag.indexOf('sold_') == 0" class="btn sold">已出售</div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+    <div class="single-warp" v-if="showSingle" @click="toggleSingle(false)">
+      <div class="single-center">
+        <StampWrap :imgSrc="tradeItemsSingle.src"
+                   :type="'large'"
+                   :frame="true"
+                   :level="tradeItemsSingle.level"
+                   :padding="2"></StampWrap>
+      </div>
+    </div>
+    <div class="multiple-warp" v-if="showMultiple" @click="toggleMultiple(false)">
+      <div class="multiple-center">
+        <div class="multiple-content">
+          <div v-for="(item, index) in tradeItemsMulti" :key="'multi_' + index" class="multi-item" >
+            <div class="image-wrap">
+              <StampWrap :imgSrc="item.src"
+                       :type="'large'"
+                       :frame="true"
+                       :level="item.level"
+                       :padding="2"></StampWrap>
+            </div>
+            <div class="stamp-detail">
+              <div class="name">{{item.name}}</div>
+              <div class="level">品相：{{item.level}}</div>
+              <div class="type">特种邮票</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import StampWrap from '../components/StampWarp'
+import AlbumWrap from '../components/AlbumWrap'
+
 export default {
   name: 'Trade',
+  components: {
+    StampWrap,
+    AlbumWrap
+  },
   data () {
     return {
-      sth: 'some'
+      tradeItemsAlbum: [{
+        src: '/static/img/demo1.jpg',
+        name: '邮册名称',
+        year: '2018',
+        yearStart: '2018',
+        price: 32
+      },
+      {
+        src: '/static/img/demo2.jpg',
+        name: '香港回归祖国二十周年',
+        year: '2017',
+        yearStart: '2017',
+        completeCollected: true,
+        price: 5
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 17
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 13
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 12
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 12
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 12
+      },
+      {
+        src: '/static/img/demo3.jpg',
+        name: 'stamp2',
+        year: '2017',
+        price: 12
+      }],
+      tradeItemsStamp: [
+        {
+          src: '/static/img/demo3.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 12,
+          level: 80
+        },
+        {
+          src: '/static/img/demo3.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 4,
+          level: 34
+        },
+        {
+          src: '/static/img/demo7.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 2,
+          level: 91
+        }
+      ],
+      tradeItemsMulti: [
+        {
+          src: '/static/img/demo3.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 12,
+          level: 80
+        },
+        {
+          src: '/static/img/demo3.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 4,
+          level: 34
+        },
+        {
+          src: '/static/img/demo7.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 2,
+          level: 91
+        },
+        {
+          src: '/static/img/demo7.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 2,
+          level: 91
+        },
+        {
+          src: '/static/img/demo7.jpg',
+          name: 'falcon',
+          year: '2017',
+          price: 2,
+          level: 91
+        }
+      ],
+      tradeItemsSingle: {
+        src: '/static/img/demo7.jpg',
+        name: 'falcon',
+        year: '2017',
+        price: 2,
+        level: 91
+      },
+      currentTab: 'buy',
+      currentTag: 'hot_stamp',
+      showSingle: false,
+      showMultiple: false,
+      buyTags: [],
+      hotTags: []
     }
   },
   methods: {
+    switchTab (name) {
+      this.currentTab = name
+      if (name === 'buy') {
+        this.currentTag = 'hot_stamp'
+      } else {
+        this.currentTag = 'onsell_stamp'
+      }
+    },
+    clickTag (name) {
+      this.currentTag = name
+    },
+    toggleSingle (bool) {
+      this.showSingle = bool
+    },
+    toggleMultiple (bool) {
+      this.showMultiple = bool
+    }
   }
 }
 </script>
-
 <style scoped lang="less">
+  @import '../less/common.less';
+  .mid-center{
+    width: 100%;
+    height: calc(100% - 60px);
+  }
+  .trade-tab{
+    position: fixed;
+    top: 20px;
+    left: 32px;
+    z-index: 10;
+    .tab-item{
+      float: left;
+      display: flex;
+      position: relative;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 25px;
+      margin-top: 5px;
+      margin-right: 5px;
+      background-color: #cdcdcd;
+      border-radius: 4px 4px 0 0;
+      font-size: 12px;
+      color: #666;
+      overflow: hidden;
+      &:after{
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 1px;
+        bottom: -1px;
+        left: 0;
+        box-shadow: 0 0 10px 5px #0000001e;
+      }
+      &.active{
+        background-color: @themeColor;
+        color: white;
+        height: 30px;
+        margin-top: 0;
+        z-index: 20;
+        &:after{
+          display: none;
+        }
+      }
+    }
+  }
+  .trade-page{
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    height: calc(100% - 110px);
+    background-color: #fff;
+    box-shadow: 0 0 10px 5px #0000001e;
+    &:before{
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      left: 0;
+      background-color: @themeColor;
+      z-index: 10;
+    }
+    .category{
+      position: absolute;
+      width: 28%;
+      height: 100%;
+      font-size: 12px;
+      text-align: left;
+      color: #444;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      .group{
+        padding: 10px 10px 0 20px;
+        .group-label{
+          position: relative;
+          font-size: 14px;
+          margin: 5px 0;
+          &:before{
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: 5px;
+            left: -14px;
+            background-image: url(/static/ui/triangle.png);
+            background-size: contain;
+            background-repeat: no-repeat;
+            transform: rotate(90deg);
+          }
+        }
+        .group-item{
+          margin: 5px 0;
+          &.active{
+            font-weight: bold;
+            color: @themeColor;
+          }
+        }
+      }
+    }
+    .trade-wrap{
+      position: absolute;
+      width: 72%;
+      height: 100%;
+      top: 0;
+      right: 0;
+      padding: 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      .trade-wrap--scroll{
+        display: flex;
+        flex-wrap:wrap;
+        width: 100%;
+      }
+      .trade-item{
+        &.stamp{
+          position: relative;
+          width: calc(33% - 10px);
+          height: @stampRowHeightTrade;
+          margin-right: 10px;
+          margin-bottom: 20px;
+          .image-wrap{
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+          }
+        }
+        &.list{
+          position: relative;
+          width: 100%;
+          height: 110px;
+          margin-bottom: 10px;
+          background-color: #eee;
+          border-radius: 5px;
+          .image-wrap{
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            top: 10px;
+            left: 10px;
+            width: 80px;
+            height: 80%;
+          }
+          .stamp-detail{
+            position: absolute;
+            width: calc(100% - 90px);
+            left: 100px;
+            top: 30px;
+            text-align: left;
+            font-size: 12px;
+            .name{
+              margin-bottom: 10px;
+            }
+            .level, .type{
+              margin-top: -5px;
+              transform-origin: left;
+              transform: scale(0.8);
+            }
+            .price{
+              position: relative;
+              padding-left: 22px;
+              margin-top: 4px;
+              &:before{
+                content: '';
+                position: absolute;
+                width: 18px;
+                height: 18px;
+                left: 0;
+                top: -2px;
+                border-radius: 50%;
+                background-color: #aaa;
+                background-image: url(/static/ui/ether.png);
+                background-size: contain;
+              }
+            }
+          }
+          .seller-detail{
+            position: absolute;
+            width: 100px;
+            top: 8px;
+            right: 10px;
+            .seller-head{
+              float: right;
+              width: 20px;
+              height: 20px;
+              background-color: #aaa;
+              border-radius: 50%;
+              margin-left: 5px;
+            }
+            .seller-name{
+              padding-top: 1px;
+              text-align: right;
+              font-size: 12px;
+            }
+          }
+          .btn{
+            position: absolute;
+            width: 50px;
+            height: 20px;
+            bottom: 8px;
+            right: 10px;
+            background-color: @themeColor;
+            color: #fff;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            &.buy:active{
+              background-color: darken(@themeColor, 6%);
+            }
+            &.sold{
+              background-color: #ccc;
+            }
+          }
+        }
+        &.album{
+          position: relative;
+          width: 100%;
+          height: @albumRowHeightTrade;
+          margin-right: 10px;
+          margin-bottom: 20px;
+          .album-wrap{
+            position: absolute;
+            width: 80px;
+            height: 86%;
+            top: 7%;
+            left: 0;
+          }
+        }
+        .album-detail{
+          position: absolute;
+          width: 50%;
+          top: 0;
+          right: -10%;
+          font-size: 12px;
+          text-align: left;
+          transform-origin: top;
+          transform: scale(0.8);
+          .name{
+            margin-top: 6px;
+            margin-bottom: 6px;
+          }
+        }
+      }
+    }
+  }
+  .single-warp{
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #000000cc;
+    z-index: 10;
+    .single-center{
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 80%;
+      height: 80%;
+    }
+  }
+  .multiple-warp{
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #000000cc;
+    z-index: 10;
+    .multiple-center{
+      position: relative;
+      width: 80%;
+      height: 80%;
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      -webkit-overflow-scrolling: touch;
+      overflow: scroll;
+      .multi-item{
+        position: relative;
+        width: 100%;
+        height: 140px;
+        margin-bottom: 5px;
+        .image-wrap{
+          position: absolute;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100px;
+          height: 100%;
+        }
+        .stamp-detail{
+          position: absolute;
+          left: 120px;
+          top: 30px;
+          text-align: left;
+          .name{
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .level, .type{
+            font-size: 12px;
+          }
+        }
+      }
+    }
+  }
 </style>

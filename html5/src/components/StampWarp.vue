@@ -6,11 +6,12 @@
       <div class="stamp-frame bottom"></div>
       <div class="stamp-frame right"></div>
       <div class="stamp-frame left"></div>
-      <div v-if="frame" class="material-frame gold">
-        <div class="top"></div>
-        <div class="bottom"></div>
-        <div class="left"></div>
-        <div class="right"></div>
+      <div v-if="frame" class="material-frame" :class="frameClass">
+        <div class="fr top"></div>
+        <div class="fr bottom"></div>
+        <div class="fr left"></div>
+        <div class="fr right"></div>
+        <div class="mask" :style="'opacity: ' + maskOpacity"></div>
       </div>
     </figure>
     <div class="sizer" ref="sizer"></div>
@@ -37,25 +38,66 @@ export default {
   },
   data () {
     return {
-      ratio: 1,
+      ratio: 0,
       width: 0,
       height: 0
     }
   },
   mounted () {
-    let that = this
-    let img = new Image()
-    img.onload = function () {
-      that.ratio = this.width / this.height
-      that.setPosition()
+    this.computeSize()
+  },
+  watch: {
+    imgSrc (val, oldVal) {
+      this.computeSize()
     }
-    img.src = this.imgSrc
-    if (img.width && img.height) {
-      that.ratio = this.width / this.height
-      that.setPosition()
+  },
+  computed: {
+    frameClass () {
+      let className = 'black'
+      if (this.level <= 60) {
+        className = 'black'
+      } else if (this.level <= 70) {
+        className = 'blue'
+      } else if (this.level <= 80) {
+        className = 'red'
+      } else if (this.level <= 90) {
+        className = 'sliver'
+      } else if (this.level <= 100) {
+        className = 'gold'
+      }
+      return className
+    },
+    maskOpacity () {
+      let colorMask = 0.6
+      if (this.level <= 60) {
+        colorMask = 1
+      } else if (this.level <= 70) {
+        colorMask = 0.6 + (this.level - 60) / 10 * 0.4
+      } else if (this.level <= 80) {
+        colorMask = 0.6 + (this.level - 70) / 10 * 0.4
+      } else if (this.level <= 90) {
+        colorMask = 0.6 + (this.level - 80) / 10 * 0.4
+      } else if (this.level <= 100) {
+        colorMask = 0.6 + (this.level - 90) / 10 * 0.4
+      }
+      return 1 - colorMask
     }
   },
   methods: {
+    computeSize () {
+      let that = this
+      let img = new Image()
+      img.onload = function () {
+        if (that.ratio) return
+        that.ratio = this.width / this.height
+        that.setPosition()
+      }
+      img.src = this.imgSrc
+      if (img.width && img.height) {
+        that.ratio = img.width / img.height
+        that.setPosition()
+      }
+    },
     setPosition () {
       let padding = this.padding ? this.padding : 16
       let vPadding = this.vPadding ? this.vPadding : padding
@@ -119,8 +161,30 @@ export default {
       top: 0;
       left: 0;
       z-index: 20;
-      &.gold div{
+      &.gold .fr {
         background-image: url("/static/ui/material.gold.jpg");
+      }
+      &.sliver .fr{
+        background-image: url("/static/ui/material.sliver.jpg");
+      }
+      &.red .fr{
+        background-image: url("/static/ui/material.red.jpg");
+      }
+      &.blue .fr{
+        background-image: url("/static/ui/material.blue.jpg");
+      }
+      &.black .fr{
+        background-image: url("/static/ui/material.black.jpg");
+      }
+      .mask{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background-image: none;
+        border: @material-weight solid black;
+        opacity: 0;
       }
       .top{
         position: absolute;
@@ -158,6 +222,9 @@ export default {
         background-position: top right;
         background-size: cover;
       }
+    }
+    &.list .mask{
+      border: @material-weight-list solid black;
     }
     &.list:before{
       content: '';

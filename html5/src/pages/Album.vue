@@ -11,32 +11,18 @@
           <div class="sort-option" :class="sort=='year'?'active':null" @click="swithSort('year')">发布年份</div>
           <div class="sort-option" :class="sort=='recent'?'active':null" @click="swithSort('recent')">最近查看</div>
         </div>
-        <template v-for="(album, index) in currentAlbum" v-if="!(currentAlbumTab != 'year' && album.lock)">
-          <div class="year-folder" v-if="album.yearStart && currentAlbumTab=='year'" :key="'time_'+index">{{album.year}}</div>
-          <div class="album-item" ref="album" @click="checkAlbum" :key="'album_'+index" :class="album.lock?'lock':null">
-            <img class="album-cover-bg" :src="album.src" alt="">
-            <div class="img-wrap">
-              <StampWrap :imgSrc="album.src" :type="'thumb'" :padding="22"></StampWrap>
+        <div class="album-page--scroll">
+          <template v-for="(album, index) in currentAlbum" v-if="!(currentAlbumTab != 'year' && album.lock)">
+            <div class="year-folder" v-if="album.yearStart && currentAlbumTab=='year'" :key="'time_'+index">{{album.year}}</div>
+            <div class="album-wrap" :key="'album_'+index">
+              <AlbumWrap :name="album.name"
+                         :year="album.year"
+                         :lock="album.lock"
+                         :coverUrl="album.src"
+                         @click="checkAlbum"></AlbumWrap>
             </div>
-            <div class="album-name">{{album.name}}</div>
-            <div class="album-year">{{album.year}}</div>
-            <div class="album-complete" v-if="album.completeCollected">
-              <div class="cp-tag">全</div>
-              <div class="cp-tag">套</div>
-              <div class="cp-tag">齐</div>
-            </div>
-          </div>
-        </template>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
-        <div class="album-item">test</div>
+          </template>
+        </div>
       </div>
     </div>
     <div class="serial-page" v-if="pageLevel == 'serial'">
@@ -47,7 +33,10 @@
           <div class="stamp-item" v-for="(stamp, index) in currentSerial" :key="'stamp_' + index">
             <div v-if="stamp.multiple" class="multiple-wrap" :key="'stamp_img_' + index">
               <div class="img-wrap" v-for="(stp, index) in stamp.list" :key="'stp_img_' + index" @click="multipleClick">
-                <StampWrap :imgSrc="stp.src" :type="'list'" :frame="true"></StampWrap>
+                <StampWrap :imgSrc="stp.src"
+                           :type="'list'"
+                           :frame="true"
+                           :level="stp.level"></StampWrap>
               </div>
             </div>
             <div v-else class="img-wrap" @click="openSingle">
@@ -82,8 +71,8 @@
           </div>
           <div class="stamp-desc">{{currentStamp.desc}}</div>
           <div class="stamp-expire" v-if="currentStamp.expire">
-            <span class="expire-btn buy">购买</span>
-            <span class="expire-btn extend">延期</span>
+            <span class="expire-btn buy" @click="buyStamp">购买</span>
+            <span class="expire-btn extend" @click="extendExpire">延期</span>
             <span class="expire-text">{{currentStamp.expire}}</span>
           </div>
         </div>
@@ -95,10 +84,13 @@
 
 <script>
 import StampWrap from '../components/StampWarp'
+import AlbumWrap from '../components/AlbumWrap'
+
 export default {
   name: 'Album',
   components: {
-    StampWrap
+    StampWrap,
+    AlbumWrap
   },
   data () {
     return {
@@ -338,7 +330,7 @@ export default {
     },
     multipleClick (e) {
       let that = this
-      this.multiple = true
+      this.openMultiple(e)
       let pageX = e.pageX
       let pageY = e.pageY
       setTimeout(function () {
@@ -369,21 +361,37 @@ export default {
     },
     openSingle (e) {
       this.single = true
+      e.stopPropagation()
     },
     closeMultiple (e) {
       this.multiple = false
     },
     closeSingle (e) {
       this.single = false
+      let that = this
+      setTimeout(function () {
+        if (that.multiple) {
+          let elems = that.$refs.mItem
+          for (let i in elems) {
+            elems[i].style.transition = 'all 0.3s ease-out'
+            elems[i].style.webkitTransition = 'all 0.3s ease-out'
+            elems[i].style.opacity = '1'
+          }
+        }
+      }, 200)
+    },
+    buyStamp (e) {
+      e.stopPropagation()
+    },
+    extendExpire (e) {
+      e.stopPropagation()
     }
   }
 }
 </script>
 
 <style scoped lang="less">
-@themeColor: #01ce7e;
-@rowHeight: 140px;
-@albumRowHeight: 120px;
+@import '../less/common.less';
 .mid-center{
   width: 100%;
   height: calc(100% - 60px);
@@ -447,8 +455,6 @@ export default {
   }
   .album-page--wrapper{
     position: absolute;
-    display: flex;
-    flex-wrap:wrap;
     width: calc(100% - 32px);
     height: calc(100% - 60px);
     top: 60px;
@@ -482,129 +488,17 @@ export default {
         }
       }
     }
-    .year-folder{
-      clear: both;
-      text-align: left;
+    .album-page--scroll{
       width: 100%;
-      height: 20px;
-      font-size: 13px;
-      margin-bottom: 10px;
-      &:before{
-        content: "";
-        display: inline-block;
-        width: 10px;
-        height: 12px;
-        margin-right: 5px;
-        background-image: url(/static/ui/triangle.png);
-        background-size: cover;
-        transition: all 0.3s ease-in-out;
-        transform: rotate(90deg)translate(1px,0);
-      }
-      &.close:before{
-        transform: rotate(0)translate(1px,0);
-      }
+      display: flex;
+      flex-wrap:wrap;
     }
-    .album-item{
+    .album-wrap{
       position: relative;
       width: calc(33.3% - 10px);
       height: @albumRowHeight;
       margin-right: 10px;
       margin-bottom: 10px;
-      color: #aaa;
-      border-radius: 4px;
-      overflow: hidden;
-      box-shadow: 0 0 1px 2px #0000001e;
-      transform: scale3d(1,1,1);
-      transition: all 0.1s ease-in-out;
-      &.lock{
-        .img-wrap{
-          filter: grayscale(100%);
-        }
-        .album-cover-bg{
-          filter: blur(15px)grayscale(100%);
-        }
-        &:before{
-          content: "";
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          top: 0;
-          left: 0;
-          background-color: #00000099;
-          z-index: 100;
-        }
-        &:after{
-          content: "";
-          position: absolute;
-          width: 39px;
-          height: 45px;
-          top: 50%;
-          left: 50%;
-          margin-left: -19.5px;
-          margin-top: -27.5px;
-          background-image: url(/static/ui/bookLocked.icon.png);
-          background-repeat: no-repeat;
-          background-size: contain;
-          z-index: 120;
-        }
-      }
-      .img-wrap{
-        position: absolute;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        width: 100%;
-        height: 70px;
-        top: 0;
-        left: 0;
-      }
-      .album-cover-bg{
-        position: absolute;
-        top: -30%;
-        left: -30%;
-        width: 160%;
-        height: 160%;
-        object-fit: cover;
-        filter: blur(15px)brightness(70%);
-        transform: scale3d(1,1,1);
-        opacity: 1;
-      }
-      .album-name{
-        position: absolute;
-        width: calc(100% - 10px);
-        left: 5px;
-        bottom: 21px;
-        font-size: 12px;
-        color: #ffffff;
-        transform: scale(0.8);
-      }
-      .album-year{
-        position: absolute;
-        width: 100%;
-        height: 20px;
-        bottom: 5px;
-        font-size: 12px;
-        color: #ffffff;
-        transform: scale(0.7);
-      }
-      .album-complete{
-        position: absolute;
-        top: 0;
-        left: 6px;
-        padding: 1px;
-        padding-top: 14px;
-        background-color: #ffdb19;
-        border-radius: 0 0 7px 7px;
-        .cp-tag{
-          width: 12px;
-          height: 10px;
-          line-height: 0;
-          font-size: 12px;
-          transform: scale(0.72);
-          color: #000;
-        }
-      }
     }
   }
 }
@@ -659,7 +553,7 @@ export default {
         height: 100%;
         pointer-events: none;
         background: linear-gradient(0deg, black 35px, transparent 37px);
-        background-size: 100% @rowHeight;
+        background-size: 100% @stampRowHeight;
         opacity: 0.1;
         z-index: 10;
       }
@@ -672,7 +566,7 @@ export default {
         position: relative;
         float: left;
         width: 33.3%;
-        height: @rowHeight;
+        height: @stampRowHeight;
         transform: scale3d(1,1,1);
         .img-wrap{
           display: flex;
@@ -795,9 +689,15 @@ export default {
         margin-left: 6px;
         &.extend{
           color: @themeColor;
+          &:active{
+            background-color: darken(#fff, 6%);
+          }
         }
         &.buy{
           background-color: @themeColor;
+          &:active{
+            background-color: darken(@themeColor, 6%);
+          }
           color: #fff;
         }
       }
@@ -835,7 +735,7 @@ export default {
   .stamp-transformer{
     position: relative;
     width: 30%;
-    height: @rowHeight;
+    height: 80px;
     opacity: 0;
   }
   .stamp-item{
