@@ -30,7 +30,7 @@ contract('StampCollection', function(accounts) {
     }).then(function(cfoAddress) {
         assert.equal(cfoAddress, accounts[1], "设置CFO地址成功");
     }).then(function() {
-        return stamp.releaseNewStampToAuction(1,10, 10, "0x686f757069616f",1989, 1, 1,  [0,1,2,3,4]);
+        return stamp.releaseNewStampToAuction(1,10, 10, "0x686f757069616f",1989, 1, 1, 4);
     }).then(function() {
       return stamp.ownerOf.call(0);
     }).then(function(ownerAddress) {
@@ -52,12 +52,12 @@ contract('StampCollection', function(accounts) {
       console.log('totalCount = '+totalCount);
       console.log('stampCount_ = '+totalCount);
       assert.equal(totalCount.toNumber(), stampCount_, "创建的个数和totalSupply不一致");
-      return stamp.tokenOfOwnerByIndex.call(saleauction.address,1);
+      return stamp.tokenOfOwnerByIndex.call(saleauction.address,0);
     }).then(function(tokenId) {
-      assert.equal(tokenId, 1, "拍卖合约地址的第一个tokenId应该为1");
-      return stamp.tokenByIndex.call(1);
+      assert.equal(tokenId, 0, "拍卖合约地址的第一个tokenId应该为1");
+      return stamp.tokenByIndex.call(0);
     }).then(function(tokenId) {
-      assert.equal(tokenId, 1, "tokenId和Index对应关系不对，tokenId为1index也应该为1");
+      assert.equal(tokenId, 0, "tokenId和Index对应关系不对，tokenId为1index也应该为1");
       return stamp.symbol.call();
     }).then(function(symbol) {
       console.log("symbol = "+symbol.toString());
@@ -83,10 +83,10 @@ contract('StampCollection', function(accounts) {
       return stamp.balanceOf(saleauction.address);
     }).then(function(balance) {
       console.log('balance = '+balance);
-      assert.equal(balance, 5, "ceo拥有的邮票个数不为5");
-      return saleauction.bid(2,{from: accounts[2], value:web3.toWei(100,'finney')});
+      assert.equal(balance, 1, "ceo拥有的邮票个数不为5");
+      return saleauction.bid(0,{from: accounts[2], value:web3.toWei(100,'finney')});
     }).then(function() {
-      return stamp.ownerOf.call(2);
+      return stamp.ownerOf.call(0);
     }).then(function(owner) {
       assert.equal(owner, accounts[2], "tokenId为2的owner应该为accounts[2]");
     });
