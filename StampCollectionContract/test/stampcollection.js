@@ -52,9 +52,9 @@ contract('StampCollection', function(accounts) {
       console.log('totalCount = '+totalCount);
       console.log('stampCount_ = '+totalCount);
       assert.equal(totalCount.toNumber(), stampCount_, "创建的个数和totalSupply不一致");
-      return stamp.tokenOfOwnerByIndex.call(saleauction.address,0);
+      return stamp.tokenOfOwnerByIndex.call(saleauction.address,1);
     }).then(function(tokenId) {
-      assert.equal(tokenId, 0, "拍卖合约地址的第一个tokenId应该为0");
+      assert.equal(tokenId, 1, "拍卖合约地址的第一个tokenId应该为1");
       return stamp.tokenByIndex.call(1);
     }).then(function(tokenId) {
       assert.equal(tokenId, 1, "tokenId和Index对应关系不对，tokenId为1index也应该为1");
@@ -80,7 +80,15 @@ contract('StampCollection', function(accounts) {
       return stamp.exists.call(0);
     }).then(function(havaExisted) {
       assert.equal(havaExisted, true, "tokenId为0的邮票已经发布");
-      // return stamp.exists.call(0);
+      return stamp.balanceOf(saleauction.address);
+    }).then(function(balance) {
+      console.log('balance = '+balance);
+      assert.equal(balance, 5, "ceo拥有的邮票个数不为5");
+      return saleauction.bid(2,{from: accounts[2], value:web3.toWei(100,'finney')});
+    }).then(function() {
+      return stamp.ownerOf.call(2);
+    }).then(function(owner) {
+      assert.equal(owner, accounts[2], "tokenId为2的owner应该为accounts[2]");
     });
   });
 });

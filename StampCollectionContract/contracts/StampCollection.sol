@@ -747,7 +747,7 @@ contract StampMinting is StampAuction {
             approve(saleAuction, tokenId);
             saleAuction.createAuction(
                 tokenId,
-                _computeStampPrice(_year, _appearanceArray.length),
+                _computeStampPrice(_year, _totalAmount),
                 0,
                 STAMP_AUCTION_DURATION,
                 msg.sender
@@ -1111,8 +1111,10 @@ contract SaleClockAuction is ClockAuction {
         external
         payable
     {
+        
         _bid(_tokenId, msg.value);
         _transfer(msg.sender, _tokenId);
+        saleCount++;
     }
 
 }
