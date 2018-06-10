@@ -735,14 +735,15 @@ contract StampMinting is StampAuction {
         uint16 _year,
         uint16 _setId,
         uint8 _memberOfSetId,
-        uint8[] _appearanceArray
+        uint8 _appearance
         ) 
         external 
         onlyCOO 
+        returns (uint256)
         {
         require(stampCreatedCount < HISTORY_CREATION_LIMIT);
-        for(uint16 i = 0; i < _appearanceArray.length; i++) {
-            uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
+        // for(uint16 i = 0; i < _appearanceArray.length; i++) {
+            uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
             setApprovalForAll(saleAuction, true);
             approve(saleAuction, tokenId);
             saleAuction.createAuction(
@@ -754,8 +755,8 @@ contract StampMinting is StampAuction {
             );
 
             stampCreatedCount++;
-        }
-        
+        // }
+        return tokenId;
     }
 
     function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
