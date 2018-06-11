@@ -3,3 +3,27 @@
 @stampRowHeightTrade: 80px;
 @albumRowHeight: 120px;
 @albumRowHeightTrade: 90px;
+
+.theme-btn{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &.white{
+    background-color: #fff;
+    color: @themeColor;
+    border: 1px solid @themeColor;
+    &:active{
+      background-color: darken(white, 6%);
+    }
+  }
+  &.green{
+    background-color: @themeColor;
+    color: white;
+    &:active{
+      background-color: darken(@themeColor, 6%);
+    }
+  }
+  &:active{
+    transform: scale(0.95);
+  }
+}

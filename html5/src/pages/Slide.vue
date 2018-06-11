@@ -26,10 +26,26 @@
       <stack ref="stack" :pages="currentLoopList" :stackinit="stackinit" @slideChange="slideChange"></stack>
     </div>
     <div class="controls">
-      <button @click="onReverse" :class="$store.state.Slide.canReverseTime>0?'active':null" class="button reverse small"></button>
-      <button @click="onPressBad" class="button bad"></button>
-      <button @click="onPressGood" class="button good"></button>
-      <button @click="onCollect" :class="$store.state.Slide.currentStamp.colleted?'active':null" class="button favor small"></button>
+      <button @click="onPressBad" class="button bad small"></button>
+      <button @click="onReverse" :class="$store.state.Slide.canReverseTime>0?'active':null" class="button reverse"></button>
+      <button @click="onFavor" :class="isFavor?'active':null" class="button favor"></button>
+      <button @click="onPressGood" class="button good small"></button>
+    </div>
+    <div v-if="askModal" class="ask-modal" @click="closeAskModal">
+      <div class="modal-center" @click="stopPropagation">
+        <div class="favor-icon"></div>
+        <div class="col">
+          <div class="text">花费元宝</div>
+          <div class="text"><span class="icon ingot-icon"></span> x 20</div>
+          <div class="action-btn theme-btn white" @click="actionCollect">收藏五天</div>
+        </div>
+        <div class="col">
+          <div class="text">花费以太币</div>
+          <div class="text"><span class="icon eth-icon"></span> x 10</div>
+          <div class="action-btn theme-btn green" @click="actionBuy">直接购买</div>
+        </div>
+        <div class="close-btn" @click="closeAskModal"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -44,14 +60,17 @@ export default {
     return {
       currentLoopList: [],
       stackinit: {
-        visible: 3
+        visible: 3,
+        currentPage: this.$store.state.Slide.currentLoopIndex || 0
       },
       canReverseTime: 3,
       isFavor: false,
       currentPage: 0,
       currentPathArray: [],
       pathFade: false,
-      drawing: false
+      drawing: false,
+      syncCount: 0,
+      askModal: false
     }
   },
   computed: {
@@ -61,6 +80,9 @@ export default {
       } else {
         return this.currentPathArray.map(i => i.join(' ')).join(',')
       }
+    },
+    isStoreFavor () {
+      return this.$store.state.Slide.currentStamp.favor
     }
   },
   mounted () {
@@ -70,7 +92,17 @@ export default {
       let preloadImg = new Image()
       preloadImg.src = '/static/ui/' + preloadList[i]
     }
+    this.$store.dispatch('refreshCoin')
     this.$store.dispatch('changeLoopIndex', 0)
+    let that = this
+    setInterval(function () {
+      if (that.syncCount) {
+        if (that.syncCount === 1) {
+          that.$store.dispatch('syncSlideReult')
+        }
+        that.syncCount--
+      }
+    }, 1000)
   },
   components: {
     stack,
@@ -78,31 +110,43 @@ export default {
   },
   methods: {
     onReverse () {
-      this.$emit('reverseSlide')
       this.$store.dispatch('reverseSlide')
+      this.$emit('reverseSlide')
     },
     onPressBad () {
-      this.$refs.stack.$emit('prev')
       this.$store.dispatch('setBad')
+      this.$refs.stack.$emit('prev')
     },
     onPressGood () {
-      this.$refs.stack.$emit('next')
       this.$store.dispatch('setGood')
+      this.$refs.stack.$emit('next')
     },
-    onCollect () {
+    onFavor () {
       this.isFavor = !this.isFavor
-      this.$store.dispatch('setCollect')
-      // this.$refs.stack.$emit('next')
+      if (this.isFavor) {
+        this.askModal = true
+      }
+      this.$store.dispatch('setFavor', this.isFavor)
       this.$emit('favor')
     },
-    onBuy () {
-      this.$refs.stack.$emit('next')
+    stopPropagation (e) {
+      e.stopPropagation()
+    },
+    actionCollect () {
+      console.log('collect', this.$store.state.Slide.currentStamp)
+    },
+    actionBuy () {
+      console.log('buy', this.$store.state.Slide.currentStamp)
+    },
+    closeAskModal () {
+      this.askModal = false
     },
     slideChange (index) {
       this.currentPage = index
-      this.coinNumber += 10
       this.$store.dispatch('changeLoopIndex', index)
-      this.$store.dispatch('coinIncreaseSlide')
+      this.$store.dispatch('coinIncrease', 10)
+      this.syncCount = 4
+      this.isFavor = false
     },
     touchstart (e) {
       this.drawing = true
@@ -125,6 +169,7 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="less">
+  @import "../less/common.less";
   h1, h2 {
     font-weight: normal;
   }
@@ -143,7 +188,7 @@ export default {
     display: flex;
     position: relative;
     width: 100%;
-    height: calc(100% - 70px);
+    height: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -164,8 +209,7 @@ export default {
     text-align: center;
     display:flex;
     justify-content:center;
-    margin: 0 auto;
-    margin-top: 40px
+    margin: 40px auto 60px;
   }
   .controls .button {
     border: none;
@@ -242,6 +286,82 @@ export default {
     &.fade{
       transition: all 1s ease-out;
       opacity: 0;
+    }
+  }
+  .ask-modal{
+    position: fixed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #000000aa;
+    z-index: 1000;
+    .modal-center{
+      position: relative;
+      width: 260px;
+      height: 200px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 0 10px 5px #0000005e;
+      display: flex;
+      flex-wrap: wrap;
+      padding: 20px;
+      .favor-icon{
+        width: 100%;
+        height: 36px;
+        background-image: url(/static/ui/opFavor.small.png);
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+      .col{
+        position: relative;
+        flex: 1;
+        font-size: 13px;
+        margin-top: -40px;
+        .text{
+          .icon{
+            display: inline-block;
+            position: relative;
+            top: 7px;
+            width: 22px;
+            height: 22px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            &.ingot-icon{
+              background-image: url(/static/ui/ignotMini.png);
+            }
+            &.eth-icon{
+              background-image: url(/static/ui/ether.png);
+            }
+          }
+        }
+        .action-btn{
+          position: absolute;
+          width: 80%;
+          height: 30px;
+          left: 10%;
+          bottom: 10px;
+          border-radius: 15px;
+        }
+      }
+      .close-btn{
+        position: absolute;
+        width: 58px;
+        height: 58px;
+        bottom: -30px;
+        left: 50%;
+        margin-top: 40px;
+        margin-left: -29px;
+        border-radius: 50%;
+        background-image: url(/static/ui/single.close.png);
+        background-size: cover;
+        &:active{
+          transform: scale(0.9);
+        }
+      }
     }
   }
 </style>

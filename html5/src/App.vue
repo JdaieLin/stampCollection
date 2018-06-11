@@ -2,16 +2,19 @@
   <div id="app">
     <router-view/>
     <Tabbar/>
+    <Tutorial/>
   </div>
 </template>
 
 <script>
 import Tabbar from './components/Tabbar'
+import Tutorial from './components/Tutorial'
 
 export default {
   name: 'App',
   components: {
-    Tabbar
+    Tabbar,
+    Tutorial
   }
 }
 </script>

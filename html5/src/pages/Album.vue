@@ -40,7 +40,7 @@
               </div>
             </div>
             <div v-else class="img-wrap" @click="openSingle">
-              <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true" :key="'stamp_img_' + index"></StampWrap>
+              <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true" :key="'stamp_img_' + index" :level="stamp.level"></StampWrap>
             </div>
             <div v-if="stamp.expire" class="expire">{{stamp.expire}}</div>
           </div>
@@ -51,7 +51,7 @@
       <div class="stamp-transformer" ref="mItem" v-for="(stamp, index) in currentMultiple" :key="'multiple_' + index">
         <div class="stamp-item">
           <div class="img-wrap" @click="openSingle">
-            <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true"></StampWrap>
+            <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true" :level="stamp.level"></StampWrap>
           </div>
           <div v-if="stamp.expire" class="expire">{{stamp.expire}}</div>
         </div>
@@ -60,14 +60,14 @@
     <div class="single-page" v-if="single" @click="closeSingle">
       <div class="single-wrap">
         <div class="img-warp">
-          <StampWrap :imgSrc="currentStamp.src" :type="'large'" :frame="true" :padding="60" :v-padding="30"></StampWrap>
+          <StampWrap :imgSrc="currentStamp.src" :level="currentStamp.level" :type="'large'" :frame="true" :padding="60" :v-padding="30"></StampWrap>
         </div>
         <div class="single-detail">
-          <div class="stamp-title">{{currentStamp.name}}, {{currentStamp.year}}</div>
+          <div class="stamp-title">{{currentStamp.name}}, {{currentStamp.date}}</div>
           <div class="stamp-counts">
             <span class="level">品相：{{currentStamp.level}}</span>
             <span class="type">{{currentStamp.type}}</span>
-            <span class="num">剩余量：{{currentStamp.rest}}/{{currentStamp.total}}</span>
+            <span class="num">剩余量：{{currentStamp.remain}}/{{currentStamp.amount}}</span>
           </div>
           <div class="stamp-desc">{{currentStamp.desc}}</div>
           <div class="stamp-expire" v-if="currentStamp.expire">
@@ -115,27 +115,32 @@ export default {
           src: '/static/img/demo1.jpg',
           name: 'falcon',
           year: '2017',
+          level: 89,
           expire: '2018.5.31 到期'
         },
         {
           src: '/static/img/demo1.jpg',
           name: 'falcon',
+          level: 89,
           year: '2017'
         },
         {
           src: '/static/img/demo1.jpg',
           name: 'falcon',
+          level: 89,
           year: '2017'
         }
       ],
       currentSerial: [{
         src: '/static/img/demo7.jpg',
         name: '飞天一号',
+        level: 98,
         year: '2018'
       },
       {
         src: '/static/img/demo4.jpg',
         name: '飞天二号珍藏版',
+        level: 89,
         year: '2018',
         expire: '2018.5.31 到期'
       },
@@ -145,17 +150,20 @@ export default {
           {
             src: '/static/img/demo1.jpg',
             name: 'falcon',
+            level: 89,
             year: '2017',
             expire: '2018.5.31 到期'
           },
           {
             src: '/static/img/demo1.jpg',
             name: 'falcon',
+            level: 89,
             year: '2017'
           },
           {
             src: '/static/img/demo1.jpg',
             name: 'falcon',
+            level: 89,
             year: '2017'
           }
         ]
@@ -163,70 +171,83 @@ export default {
       {
         src: '/static/img/1.png',
         name: 'falcon',
+        level: 89,
         year: '2017',
         expire: '2018.5.31 到期'
       },
       {
         src: '/static/img/3.png',
         name: 'falcon',
+        level: 89,
         year: '2017'
       },
       {
         src: '/static/img/5.png',
         name: 'falcon',
+        level: 89,
         year: '2017'
       },
       {
         src: '/static/img/1.png',
         name: 'falcon',
+        level: 72,
         year: '2017',
         expire: '2018.5.31 到期'
       },
       {
         src: '/static/img/3.png',
         name: 'falcon',
+        level: 89,
         year: '2017'
       },
       {
         src: '/static/img/5.png',
         name: 'falcon',
+        level: 89,
         year: '2017'
       },
       {
         src: '/static/img/1.png',
         name: 'falcon',
+        level: 80,
         year: '2017',
         expire: '2018.5.31 到期'
       },
       {
         src: '/static/img/3.png',
         name: 'falcon',
+        level: 62,
         year: '2017'
       },
       {
         src: '/static/img/5.png',
         name: 'falcon',
+        level: 89,
         year: '2017'
       },
       {
         src: '/static/img/6.png',
         name: 'falcon',
+        level: 89,
         year: '2016',
         expire: '2018.5.31 到期'
       },
       {
         src: '/static/img/2.png',
         name: 'falcon',
+        level: 89,
         year: '2018'
       },
       {
         src: '/static/img/7.png',
         name: 'falcon',
+        level: 89,
         year: '2018'
       },
       {
         src: '/static/img/4.png',
         name: 'falcon',
+        level: 89,
         year: '2018'
       }],
       currentAlbum: [{

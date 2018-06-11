@@ -5,8 +5,10 @@ import App from './App'
 import router from './router'
 import Vuex from 'vuex'
 import store from './store'
+import axios from 'axios'
 
 Vue.config.productionTip = false
+Vue.http = Vue.prototype.$http = axios
 
 Vue.use(Vuex)
 
@@ -17,6 +19,12 @@ new Vue({
   store,
   components: { App },
   template: '<App/>'
+})
+
+// 登录测试账号
+store.dispatch('login', {
+  login_id: 'balabala',
+  login_password: 'aabbcc'
 })
 
 document.body.addEventListener('touchstart', function () { })

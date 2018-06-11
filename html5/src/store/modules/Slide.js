@@ -1,82 +1,16 @@
+import apiHost from '../host'
+import Vue from 'vue'
+
+const slideLength = 15
+
 const state = {
-  stamps: [
-    {
-      stamp_id: 1,
-      brightness: 1.1,
-      crack: 1.1,
-      stain: 1.1,
-      postmark: 2,
-      image_small: '',
-      heat: 1.1// 此处需要发行量数据
-    }
-  ],
-  currentStamp: {},
-  currentLoopList: [
-    {
-      title: '价值连城的邮票',
-      age: '2018',
-      level: 98,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/1.png'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 72,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo2.jpg'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 68,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo3.jpg'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 89,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo4.jpg'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 76,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo5.jpg'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 40,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo6.jpg'
-    },
-    {
-      title: 'stamp name',
-      age: '2018',
-      level: 96,
-      total: 300,
-      rest: 23,
-      imgSrc: '../../static/img/demo7.jpg'
-    }
-  ],
+  stamps: [],
+  currentStamp: null,
+  currentLoopList: [],
   currentLoopIndex: 0,
-  canReverseTime: 3,
-  slideResultList: [
-    {
-      stamp_id: 0,
-      action: 0
-    }
-  ],
+  canReverseTime: localStorage.getItem('reverseCountDate_' + new Date().toLocaleDateString()) || 3,
+  start: false,
+  slideResultList: [],
   preloadList: [
     'coin.png',
     'coin.w-shadow.png',
@@ -121,7 +55,38 @@ const state = {
 // http post : /api/stamp/recycle
 
 const mutations = {
+  START (state) {
+    state.start = true
+  },
+  UPDATE_LOOP_LIST (state, newList) {
+    if (state.currentLoopList.length === 0) {
+      for (let i in newList) {
+        state.currentLoopList.push(newList[i])
+      }
+      state.currentLoopIndex = 0
+    } else {
+      let updateIndex
+      if (state.currentLoopIndex > 9) {
+        updateIndex = 0
+      } else if (state.currentLoopIndex > 4) {
+        updateIndex = 10
+      } else {
+        updateIndex = 5
+      }
+      for (let i in newList) {
+        state.currentLoopList[(updateIndex + i) % slideLength] = newList[i]
+      }
+    }
+    state.currentStamp = state.currentLoopList[state.currentLoopIndex]
+  },
   CHANGE_LOOP_INDEX (state, index) {
+    if (state.currentStamp) {
+      // save slide result
+      state.slideResultList.push({
+        stamp_id: state.currentStamp.id,
+        action: state.currentStamp.action
+      })
+    }
     state.currentLoopIndex = index
     state.currentStamp = state.currentLoopList[state.currentLoopIndex]
   },
@@ -131,28 +96,62 @@ const mutations = {
   SET_GOOD (state) {
     state.currentStamp.action = 1
   },
-  SET_COLLECT (state) {
+  SET_FAVOR (state) {
     state.currentStamp.action = 2
-    state.currentStamp.collected = true
-    console.log(state.currentStamp)
+    if (state.currentStamp.favor != null) {
+      state.currentStamp.favor = !state.currentStamp.favor
+    } else {
+      state.currentStamp.favor = true
+    }
   },
   SET_BUY (state) {
     state.currentStamp.action = 3
   },
   REVERSE_SLIDE (state) {
-    if (!state.canReverseTime) return
+    if (parseInt(state.canReverseTime) <= 0) return
     let stamp = state.currentLoopList.pop()
     state.currentLoopList.unshift(stamp)
     state.currentStamp = state.currentLoopList[state.currentLoopIndex]
     if (state.canReverseTime) {
       state.canReverseTime--
+      localStorage.setItem('reverseCountDate_' + new Date().toLocaleDateString(), state.canReverseTime)
     }
+  },
+  CLEAR_SLIDE_RESULT (state) {
+    state.slideResultList = []
   }
 }
 
 const actions = {
-  changeLoopIndex ({commit}, index) {
+  getLoopSlideInit ({commit, rootState}) {
+    let data = {
+      user_id: rootState.User.user_id,
+      max: slideLength
+    }
+    Vue.http.post(apiHost + '/api/sweep/list', data).then((response) => {
+      if (response.data.success) {
+        commit('UPDATE_LOOP_LIST', response.data.result.stamps)
+      }
+    })
+  },
+  changeLoopIndex ({commit, rootState}, index) {
     commit('CHANGE_LOOP_INDEX', index)
+    if (!state.start) {
+      commit('START')
+    } else {
+      if (index === 0 || index === 5 || index === 10) {
+        let data = {
+          user_id: rootState.User.user_id,
+          max: 5
+        }
+        Vue.http.post(apiHost + '/api/sweep/list', data).then((response) => {
+          if (response.data.success) {
+            console.log('get 5 more slides')
+            commit('UPDATE_LOOP_LIST', response.data.result.stamps)
+          }
+        })
+      }
+    }
   },
   setGood ({commit}) {
     commit('SET_GOOD')
@@ -163,11 +162,23 @@ const actions = {
   setBuy ({commit}) {
     commit('SET_BUY')
   },
-  setCollect ({commit}) {
-    commit('SET_COLLECT')
+  setFavor ({commit}) {
+    commit('SET_FAVOR')
   },
   reverseSlide ({commit}) {
     commit('REVERSE_SLIDE')
+  },
+  syncSlideReult ({commit, rootState}) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamps: state.slideResultList
+    }
+    commit('CLEAR_SLIDE_RESULT')
+    Vue.http.post(apiHost + '/api/sweep/sync', data).then((response) => {
+      if (response.data.success) {
+        console.log('slide sync success')
+      }
+    })
   }
 }
 

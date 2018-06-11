@@ -1,10 +1,13 @@
+import apiHost from '../host'
+import Vue from 'vue'
+
 const state = {
   coins: 0,
-  ingot: 0,
+  ingots: 0,
   chests: [
     {
       hour: 0,
-      ingot: 0,
+      ingots: 0,
       opened: true
     }
   ]
@@ -14,14 +17,60 @@ const state = {
 // http post : /api/chest/sync
 
 const mutations = {
-  INCREMENT_COIN (state) {
-    state.coins += 10
+  INCREMENT_COINS (state, payload) {
+    state.coins += payload
+  },
+  REDUCE_COINS (state, payload) {
+    state.coins -= payload
+  },
+  UPDATE_COINS (state, coins) {
+    state.coins = coins
+  },
+  INCREMENT_INGOTS (state, ingots) {
+    state.ingots += ingots
+  },
+  UPDATE_INGOTS (state, ingots) {
+    state.ingots = ingots
+  },
+  UPDATE_CHESTS (state, chests) {
+    state.chests = chests
   }
 }
 
 const actions = {
-  coinIncreaseSlide ({ commit }) {
-    commit('INCREMENT_COIN', 10)
+  refreshCoin ({commit}) {
+    setTimeout(function () {
+      commit('INCREMENT_COINS', 1)
+    }, 500)
+    setTimeout(function () {
+      commit('REDUCE_COINS', 1)
+    }, 501)
+  },
+  coinIncrease ({ commit }, payload) {
+    commit('INCREMENT_COINS', payload)
+  },
+  ingotIncrease ({ commit }, payload) {
+    commit('INCREMENT_INGOTS', payload)
+  },
+  listChests ({commit, rootState}, payload) {
+    let data = {
+      user_id: rootState.User.user_id
+    }
+    Vue.http.post(apiHost + '/api/chest/list', data).then((response) => {
+      if (response.data.success) {
+        commit('UPDATE_CHESTS', response.data.result.chests)
+        commit('UPDATE_INGOTS', response.data.result.ingots)
+      }
+    })
+  },
+  syncChest ({commit, rootState}, payload) {
+    let data = {
+      user_id: rootState.User.user_id,
+      chests: [payload]
+    }
+    Vue.http.post(apiHost + '/api/chest/sync', data).then((response) => {
+      console.log(response.data)
+    })
   }
 }
 
