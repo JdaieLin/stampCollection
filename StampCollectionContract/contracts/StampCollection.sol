@@ -265,8 +265,8 @@ contract ERC721BasicToken is ERC721Basic {
    * @param _operator operator address which you want to query the approval of
    * @return bool whether the given operator is approved by the given owner
    */
-  function isApprovedForAll(address _owner, address _operator) public view returns (bool) {
-    return operatorApprovals[_owner][_operator];
+  function isApprovedForAll(address _owner, address _operator) public view returns (bool approved) {
+   approved = operatorApprovals[_owner][_operator];
   }
 
   /**
@@ -628,7 +628,6 @@ contract StampBase is StampDataSource, StampAccessControl, ERC721TokenImplement{
     {
         require(_stampId == uint256(uint32(_stampId)));
 
-
         Stamp memory _stamp = Stamp({
             stampId:_stampId,
             year:_year,
@@ -645,7 +644,7 @@ contract StampBase is StampDataSource, StampAccessControl, ERC721TokenImplement{
 
         emit CreateNewStamp(_stampId, _totalAmount, _remainingAmount,  _name, _year, _setId, _memberOfSetId, _appearance);
         
-        _mint(address(this), newTokenId);
+        _mint(msg.sender, newTokenId);
     }
     
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
@@ -697,11 +696,9 @@ contract StampMinting is StampAuction {
             setId:_setId,
             membersId:_membersId
         });
-        for(uint16 i = 0; i < _appearanceArray.length; i++) {
-            
+        for(uint16 i = 0; i < _membersId.length; i++) {
             SetIdOfStamp[_membersId[i]] = _setId;
         }
-        
         uint256 newStampSetId = stampSets.push(_stampSet);
     }
 
@@ -738,29 +735,28 @@ contract StampMinting is StampAuction {
         uint16 _year,
         uint16 _setId,
         uint8 _memberOfSetId,
-        uint8[] _appearanceArray
+        uint8 _appearance
         ) 
         external 
         onlyCOO 
+        returns (uint256)
         {
         require(stampCreatedCount < HISTORY_CREATION_LIMIT);
-        for(uint16 i = 0; i < _appearanceArray.length; i++) {
-            uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearanceArray[i]);
-            // tokenApprovals[tokenId] = saleAuction;
-            // operatorApprovals[ceoAddress][saleAuction] = true;
-            approve(saleAuction, tokenId);
+        // for(uint16 i = 0; i < _appearanceArray.length; i++) {
+            uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
             setApprovalForAll(saleAuction, true);
+            approve(saleAuction, tokenId);
             saleAuction.createAuction(
                 tokenId,
-                _computeStampPrice(_year, _appearanceArray.length),
+                _computeStampPrice(_year, _totalAmount),
                 0,
                 STAMP_AUCTION_DURATION,
-                address(this)
+                msg.sender
             );
 
             stampCreatedCount++;
-        }
-        
+        // }
+        return tokenId;
     }
 
     function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
@@ -1116,8 +1112,10 @@ contract SaleClockAuction is ClockAuction {
         external
         payable
     {
+        
         _bid(_tokenId, msg.value);
         _transfer(msg.sender, _tokenId);
+        saleCount++;
     }
 
 }
