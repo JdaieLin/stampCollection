@@ -648,85 +648,74 @@ contract StampBase is StampAccessControl, ERC721TokenImplement{
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
         return tokenOwner[_tokenId] == _claimant;
     }
-    
-    
-    function contractApprove(address _to, uint256 _tokenId) internal {
-        require(_to != msg.sender);
-        operatorApprovals[address(this)][_to] = true;
-        emit ApprovalForAll(address(this), _to, true);
-        
-        address owner = ownerOf(_tokenId);
-        require(_to != owner);
-        require(isApprovedForAll(owner, _to));
-
-        if (getApproved(_tokenId) != address(0) || _to != address(0)) {
-            tokenApprovals[_tokenId] = _to;
-            emit Approval(owner, _to, _tokenId);
-        }
-    }
-}
-
-contract StampAuction is StampBase {
-    SaleClockAuction public saleAuction;
-    function setSaleAuctionAddress(address _address) external onlyCEO {
-        SaleClockAuction candidateContract = SaleClockAuction(_address);
-        require(candidateContract.isSaleClockAuction());
-        saleAuction = candidateContract;
-    }
-
-    function createSaleAuction(
-        uint256 _tokenId,
-        uint256 _startingPrice,
-        uint256 _endingPrice,
-        uint256 _duration
-    )
-        external
-        whenNotPaused
-    {
-        require(_owns(msg.sender, _tokenId));
-        
-        approve(saleAuction, _tokenId);
-
-        saleAuction.createAuction(
-            _tokenId,
-            _startingPrice,
-            _endingPrice,
-            _duration,
-            msg.sender
-        );
-    }
 }
 
 contract StampTransaction is StampBase {
-    SaleTransaction public saleTransaction;
-    function setEtherTransaction(address _address) external onlyCEO {
-        SaleTransaction candidateContract = SaleTransaction(_address);
-        require(candidateContract.isEtherTransaction());
-        saleTransaction = candidateContract;
+     
+    struct Trasaction {
+        uint128 price;
+        address seller;
     }
-    function userApprove(address _to, uint256 _tokenId) internal {
-        require(_to != msg.sender);
-        operatorApprovals[msg.sender][_to] = true;
-        emit ApprovalForAll(msg.sender, _to, true);
-        
-        address owner = ownerOf(_tokenId);
-        require(_to != owner);
-        require(isApprovedForAll(owner, _to));
+    
+    mapping (uint256 => Trasaction) tokenIdToTransaction;
+    
+    event TransactionCreated(uint256 tokenId, uint256 price);
+    event TransactionSuccessful(uint256 tokenId, uint256 price, address buyer);
+    event TransactionCancelled(uint256 tokenId);
+    
+    function _addTransactionn(uint256 _tokenId, Trasaction _tracsaction) internal {
+        tokenIdToTransaction[_tokenId] = _tracsaction;
 
-        if (getApproved(_tokenId) != address(0) || _to != address(0)) {
-            tokenApprovals[_tokenId] = _to;
-            emit Approval(owner, _to, _tokenId);
-        }
+        emit TransactionCreated(
+            uint256(_tokenId),
+            uint256(_tracsaction.price)
+        );
     }
-    function createEtherTransaction(uint256 _tokenId, uint256 _price, address _seller) external whenNotPaused
+
+    function _removeTransaction(uint256 _tokenId) internal {
+        delete tokenIdToTransaction[_tokenId];
+    }
+    
+    function cancelTransaction(uint256 _tokenId, address _seller) internal {
+        _removeTransaction(_tokenId);
+        transferFrom(address(this), _seller, _tokenId);
+        emit TransactionCancelled(_tokenId);
+    }
+
+    function _bid(uint256 _tokenId, uint256 _buyPrice) internal
     {
-        require(_owns(msg.sender, _tokenId));
-        userApprove(saleTransaction, _tokenId);
-        saleTransaction.createTransaction(
-            _tokenId,
-            _price,
+        Trasaction storage transactionn = tokenIdToTransaction[_tokenId];
+
+        address seller = transactionn.seller;
+        uint128 price = transactionn.price;
+        require(_buyPrice == price);
+        
+        _removeTransaction(_tokenId);
+        uint256 x = this.balance;
+        seller.transfer(_buyPrice-100000);
+
+        emit TransactionSuccessful(_tokenId, _buyPrice, msg.sender);
+    }
+    
+    function createTransaction(uint256 _tokenId, uint256 _price, address _seller) public
+    {
+        require(_price == uint256(uint128(_price)));
+        require(ownerOf(_tokenId) == msg.sender);
+
+        transferFrom(msg.sender, address(this), _tokenId);
+        Trasaction memory tracsaction = Trasaction(
+            uint128(_price),
             _seller
         );
+        _addTransactionn(_tokenId, tracsaction);
+    }
+
+    function bid(uint256 _tokenId) external payable
+    {
+        _bid(_tokenId, msg.value);
+        operatorApprovals[address(this)][msg.sender] = true;
+        approve(msg.sender, _tokenId);
+        transferFrom(address(this), msg.sender, _tokenId);
     }
 }
 
@@ -792,14 +781,19 @@ contract StampMinting is StampTransaction {
 
         uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
         _mint(address(this), tokenId);
-        contractApprove(saleTransaction, tokenId);
         
         uint256 price = _computeStampPrice(_year, _totalAmount);
-        saleTransaction.createTransaction(tokenId, price, address(this));
-
+        Trasaction memory tracsaction = Trasaction(
+            uint128(price),
+            address(this)
+        );
+        _addTransactionn(tokenId, tracsaction);
+        
         stampCreatedCount++;
         return tokenId;
     }
+
+    
 
     function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
         uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
@@ -815,14 +809,11 @@ contract StampCollection is StampMinting {
         ceoAddress = msg.sender;
         cooAddress = msg.sender;
     }
-    
+    function() external payable {
+    }
     function setNewAddress(address _v2Address) external onlyCEO whenPaused {
         newContractAddress = _v2Address;
         emit ContractUpgrade(_v2Address);
-    }
-
-    function() external payable {
-        require(msg.sender == address(saleTransaction));
     }
 
     function stampInfo(uint256 _id)
@@ -862,114 +853,6 @@ contract StampCollection is StampMinting {
     }
 }
 
-contract Transaction {
-    bool public isEtherTransaction = true;
-     
-    struct Trasaction {
-        uint128 price;
-        address seller;
-    }
-    
-    ERC721 public nonFungibleContract;
-    
-    mapping (uint256 => Trasaction) tokenIdToTransaction;
-    
-    event TransactionCreated(uint256 tokenId, uint256 price);
-    event TransactionSuccessful(uint256 tokenId, uint256 price, address buyer);
-    event TransactionCancelled(uint256 tokenId);
-    
-    function Transaction(address _nftAddress, uint256 _cut) public {
-        ERC721 candidateContract = ERC721(_nftAddress);
-        nonFungibleContract = candidateContract;
-    }
-    
-    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
-        return (nonFungibleContract.ownerOf(_tokenId) == _claimant);
-    }
-
-    function _escrow(address _owner, uint256 _tokenId) internal {
-        nonFungibleContract.transferFrom(_owner, address(this), _tokenId);
-    }
-    
-    function _addTransactionn(uint256 _tokenId, Trasaction _tracsaction) internal {
-        tokenIdToTransaction[_tokenId] = _tracsaction;
-
-        emit TransactionCreated(
-            uint256(_tokenId),
-            uint256(_tracsaction.price)
-        );
-    }
-
-    function _cancelTransactionn(uint256 _tokenId, address _seller) internal {
-        _removeTransaction(_tokenId);
-        nonFungibleContract.transferFrom(address(this), _seller, _tokenId);
-        emit TransactionCancelled(_tokenId);
-    }
-
-    function _bid(uint256 _tokenId, uint256 _buyPrice) internal
-    {
-        Trasaction storage transactionn = tokenIdToTransaction[_tokenId];
-
-        address seller = transactionn.seller;
-        uint128 price = transactionn.price;
-        require(_buyPrice == price);
-        
-        _removeTransaction(_tokenId);
-
-        seller.transfer(_buyPrice);
-
-        emit TransactionSuccessful(_tokenId, _buyPrice, msg.sender);
-    }
-
-    function _removeTransaction(uint256 _tokenId) internal {
-        delete tokenIdToTransaction[_tokenId];
-    }
-    
-    function createTransaction(uint256 _tokenId, uint256 _price, address _seller) external
-    {
-        require(_price == uint256(uint128(_price)));
-        require(_owns(msg.sender, _tokenId));
-        nonFungibleContract.setApprovalForAll(address(this), true);
-        nonFungibleContract.approve(address(this),_tokenId);
-        _escrow(msg.sender, _tokenId);
-        Trasaction memory tracsaction = Trasaction(
-            uint128(_price),
-            _seller
-        );
-        _addTransactionn(_tokenId, tracsaction);
-    }
-    
-    function bid(uint256 _tokenId) external payable
-    {
-        _bid(_tokenId, msg.value);
-        nonFungibleContract.transferFrom(address(this), msg.sender, _tokenId);
-    }
-    
-}
-
-contract SaleTransaction is Transaction {
-    function SaleTransaction(address _nftAddr, uint256 _cut) public
-        Transaction(_nftAddr, _cut) {}
-        
-    function createTransaction(uint256 _tokenId, uint256 _price, address _seller) external
-    {
-        require(_price == uint256(uint128(_price)));
-        require(_owns(msg.sender, _tokenId));
-        require(msg.sender == address(nonFungibleContract));
-        _escrow(msg.sender, _tokenId);
-        Trasaction memory tracsaction = Trasaction(
-            uint128(_price),
-            _seller
-        );
-        _addTransactionn(_tokenId, tracsaction);
-    }
-    
-    function bid(uint256 _tokenId) external payable
-    {
-        _bid(_tokenId, msg.value);
-        nonFungibleContract.transferFrom(address(this), msg.sender, _tokenId);
-    }
-}
 
 
 contract RepoTransaction {
@@ -1011,305 +894,4 @@ contract RepoTransaction {
         tokenIdToPurchase[_tokenId] = purchaseIngots;
         emit PurchaseIngotsSuccessful(_tokenId, _purchaseCount, msg.sender);
     }
-}
-
-contract ClockAuctionBase {
-    struct Auction {
-        // Current owner of NFT
-        address seller;
-        // Price (in wei) at beginning of auction
-        uint128 startingPrice;
-        // Price (in wei) at end of auction
-        uint128 endingPrice;
-        // Duration (in seconds) of auction
-        uint64 duration;
-        // Time when auction started
-        uint64 startedAt;
-    }
-
-    ERC721 public nonFungibleContract;
-
-    // Cut owner takes on each auction, measured in basis points (1/100 of a percent).
-    // Values 0-10,000 map to 0%-100%
-    uint256 public ownerCut;
-
-    mapping (uint256 => Auction) tokenIdToAuction;
-
-    event AuctionCreated(uint256 tokenId, uint256 startingPrice, uint256 endingPrice, uint256 duration);
-    event AuctionSuccessful(uint256 tokenId, uint256 totalPrice, address winner);
-    event AuctionCancelled(uint256 tokenId);
-
-    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
-        return (nonFungibleContract.ownerOf(_tokenId) == _claimant);
-    }
-
-    function _escrow(address _owner, uint256 _tokenId) internal {
-        // it will throw if transfer fails
-        nonFungibleContract.transferFrom(_owner, address(this), _tokenId);
-    }
-
-    function _transfer(address _receiver, uint256 _tokenId) internal {
-        // it will throw if transfer fails
-        nonFungibleContract.transferFrom(address(this), _receiver, _tokenId);
-    }
-
-    function _addAuction(uint256 _tokenId, Auction _auction) internal {
-        require(_auction.duration >= 1 minutes);
-
-        tokenIdToAuction[_tokenId] = _auction;
-
-        emit AuctionCreated(
-            uint256(_tokenId),
-            uint256(_auction.startingPrice),
-            uint256(_auction.endingPrice),
-            uint256(_auction.duration)
-        );
-    }
-
-    function _cancelAuction(uint256 _tokenId, address _seller) internal {
-        _removeAuction(_tokenId);
-        _transfer(_seller, _tokenId);
-        emit AuctionCancelled(_tokenId);
-    }
-
-    function _bid(uint256 _tokenId, uint256 _bidAmount)
-        internal
-        returns (uint256)
-    {
-        Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
-
-        uint256 price = _currentPrice(auction);
-        require(_bidAmount >= price);
-
-        address seller = auction.seller;
-
-        _removeAuction(_tokenId);
-
-        if (price > 0) {
-
-            uint256 auctioneerCut = _computeCut(price);
-            uint256 sellerProceeds = price - auctioneerCut;
-
-            seller.transfer(sellerProceeds);
-        }
-
-        uint256 bidExcess = _bidAmount - price;
-
-        msg.sender.transfer(bidExcess);
-        emit AuctionSuccessful(_tokenId, price, msg.sender);
-
-        return price;
-    }
-
-    function _removeAuction(uint256 _tokenId) internal {
-        delete tokenIdToAuction[_tokenId];
-    }
-
-    function _isOnAuction(Auction storage _auction) internal view returns (bool) {
-        return (_auction.startedAt > 0);
-    }
-
-    function _currentPrice(Auction storage _auction)
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 secondsPassed = 0;
-
-        if (now > _auction.startedAt) {
-            secondsPassed = now - _auction.startedAt;
-        }
-
-        return _computeCurrentPrice(
-            _auction.startingPrice,
-            _auction.endingPrice,
-            _auction.duration,
-            secondsPassed
-        );
-    }
-
-    function _computeCurrentPrice(
-        uint256 _startingPrice,
-        uint256 _endingPrice,
-        uint256 _duration,
-        uint256 _secondsPassed
-    )
-        internal
-        pure
-        returns (uint256)
-    {
-        if (_secondsPassed >= _duration) {
-            return _endingPrice;
-        } else {
-            int256 totalPriceChange = int256(_endingPrice) - int256(_startingPrice);
-
-            int256 currentPriceChange = totalPriceChange * int256(_secondsPassed) / int256(_duration);
-
-            int256 currentPrice = int256(_startingPrice) + currentPriceChange;
-
-            return uint256(currentPrice);
-        }
-    }
-
-    function _computeCut(uint256 _price) internal view returns (uint256) {
-        return _price * ownerCut / 10000;
-    }
-
-}
-
-contract ClockAuction is Pausable, ClockAuctionBase {
-    constructor(address _nftAddress, uint256 _cut) public {
-        require(_cut <= 10000);
-        ownerCut = _cut;
-
-        ERC721 candidateContract = ERC721(_nftAddress);
-        nonFungibleContract = candidateContract;
-    }
-    
-    function withdrawBalance() external {
-        address nftAddress = address(nonFungibleContract);
-
-        require(
-            msg.sender == owner ||
-            msg.sender == nftAddress
-        );
-        nftAddress.transfer(address(this).balance);
-    }
-    
-    function createAuction(
-        uint256 _tokenId,
-        uint256 _startingPrice,
-        uint256 _endingPrice,
-        uint256 _duration,
-        address _seller
-    )
-        external
-        whenNotPaused
-    {
-        require(_startingPrice == uint256(uint128(_startingPrice)));
-        require(_endingPrice == uint256(uint128(_endingPrice)));
-        require(_duration == uint256(uint64(_duration)));
-
-        require(_owns(msg.sender, _tokenId));
-        _escrow(msg.sender, _tokenId);
-        Auction memory auction = Auction(
-            _seller,
-            uint128(_startingPrice),
-            uint128(_endingPrice),
-            uint64(_duration),
-            uint64(now)
-        );
-        _addAuction(_tokenId, auction);
-    }
-
-    function bid(uint256 _tokenId)
-        external
-        payable
-        whenNotPaused
-    {
-        _bid(_tokenId, msg.value);
-        _transfer(msg.sender, _tokenId);
-    }
-
-    function cancelAuction(uint256 _tokenId)
-        external
-    {
-        Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
-        address seller = auction.seller;
-        require(msg.sender == seller);
-        _cancelAuction(_tokenId, seller);
-    }
-
-    function cancelAuctionWhenPaused(uint256 _tokenId)
-        whenPaused
-        onlyOwner
-        external
-    {
-        Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
-        _cancelAuction(_tokenId, auction.seller);
-    }
-
-    function getAuction(uint256 _tokenId)
-        external
-        view
-        returns
-    (
-        address seller,
-        uint256 startingPrice,
-        uint256 endingPrice,
-        uint256 duration,
-        uint256 startedAt
-    ) {
-        Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
-        return (
-            auction.seller,
-            auction.startingPrice,
-            auction.endingPrice,
-            auction.duration,
-            auction.startedAt
-        );
-    }
-
-    function getCurrentPrice(uint256 _tokenId)
-        external
-        view
-        returns (uint256)
-    {
-        Auction storage auction = tokenIdToAuction[_tokenId];
-        require(_isOnAuction(auction));
-        return _currentPrice(auction);
-    }
-
-}
-
-contract SaleClockAuction is ClockAuction {
-    bool public isSaleClockAuction = true;
-
-    uint256 public saleCount;
-    uint256[5] public lastSalePrices;
-
-    constructor(address _nftAddr, uint256 _cut) public
-        ClockAuction(_nftAddr, _cut) {}
-
-    function() external payable {
-    }
-    function createAuction(
-        uint256 _tokenId,
-        uint256 _startingPrice,
-        uint256 _endingPrice,
-        uint256 _duration,
-        address _seller
-    )
-        external
-    {
-        require(_startingPrice == uint256(uint128(_startingPrice)));
-        require(_endingPrice == uint256(uint128(_endingPrice)));
-        require(_duration == uint256(uint64(_duration)));
-
-        require(msg.sender == address(nonFungibleContract));
-        _escrow(_seller, _tokenId);
-        Auction memory auction = Auction(
-            _seller,
-            uint128(_startingPrice),
-            uint128(_endingPrice),
-            uint64(_duration),
-            uint64(now)
-        );
-        _addAuction(_tokenId, auction);
-    }
-
-    function bid(uint256 _tokenId)
-        external
-        payable
-    {
-        
-        _bid(_tokenId, msg.value);
-        _transfer(msg.sender, _tokenId);
-        saleCount++;
-    }
-
 }
