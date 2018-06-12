@@ -710,7 +710,7 @@ contract StampTransaction is StampBase {
         _addTransactionn(_tokenId, tracsaction);
     }
 
-    function bid(uint256 _tokenId) external payable
+    function buy(uint256 _tokenId) external payable
     {
         _bid(_tokenId, msg.value);
         operatorApprovals[address(this)][msg.sender] = true;
@@ -792,8 +792,6 @@ contract StampMinting is StampTransaction {
         stampCreatedCount++;
         return tokenId;
     }
-
-    
 
     function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
         uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
