@@ -844,7 +844,7 @@ contract StampCollection is StampMinting {
     address public newContractAddress;
 
     constructor() public {
-        paused = true;
+        paused = false;
         ceoAddress = msg.sender;
         cooAddress = msg.sender;
     }
