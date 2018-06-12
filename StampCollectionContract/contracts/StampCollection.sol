@@ -728,7 +728,39 @@ contract StampTransaction is StampBase {
     }
 }
 
-contract StampMinting is StampTransaction {
+contract RepoTransaction is StampBase{
+    struct RepoIngots {
+        address seller;
+        uint256 tokenId;
+        uint256 repoCount;
+    }
+    
+    mapping (uint256 => RepoIngots) tokenIdToRepo;
+    
+    event RepoIngotsSuccessful(uint256 tokenId, uint256 repoCount, address seller);
+
+    function repoIngots(uint256 _tokenId, uint256 _repoCount) public{
+        require(_owns(msg.sender, _tokenId));
+        transferFrom(msg.sender, address(this), _tokenId);
+        RepoIngots memory repoIngots = RepoIngots(
+            msg.sender,
+            _tokenId,
+            _repoCount
+        );
+        tokenIdToRepo[_tokenId] = repoIngots;
+        emit RepoIngotsSuccessful(_tokenId, _repoCount, msg.sender);
+    }
+    
+    function repoIngotsInfo(uint256 _tokenId) public view returns (uint256 tokenId, uint256 repoCount, address seller)
+    {
+         RepoIngots memory repoIngots = tokenIdToRepo[_tokenId];
+         tokenId = repoIngots.tokenId;
+         repoCount = repoIngots.repoCount;
+         seller = repoIngots.seller;
+    }
+}
+
+contract StampMinting is StampTransaction, RepoTransaction {
     uint256 public constant PROMO_CREATION_LIMIT = 50000;
     uint256 public constant HISTORY_CREATION_LIMIT = 4500000;
     uint256 public constant STAMP_STARTING_PRICE = 10 finney;
@@ -857,48 +889,5 @@ contract StampCollection is StampMinting {
     function withdrawBalance() external onlyCFO {
         uint256 balance = address(this).balance;
         cfoAddress.transfer(balance);
-    }
-}
-
-
-
-contract RepoTransaction {
-    struct PurchaseIngots {
-        address seller;
-        uint256 tokenId;
-        uint256 purchaseCount;
-    }
-    
-    mapping (uint256 => PurchaseIngots) tokenIdToPurchase;
-    
-    ERC721 public nonFungibleContract;
-    address public CEOAdress;
-    
-    event PurchaseIngotsSuccessful(uint256 tokenId, uint256 purchaseCount, address seller);
-    
-    constructor(address _nftAddress, address _ceoAddress) public {
-        ERC721 candidateContract = ERC721(_nftAddress);
-        nonFungibleContract = candidateContract;
-        CEOAdress = _ceoAddress;
-    }
-
-    function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
-        return (nonFungibleContract.ownerOf(_tokenId) == _claimant);
-    }
-    function _escrow(address _owner, uint256 _tokenId) internal {
-        nonFungibleContract.transferFrom(_owner, address(this), _tokenId);
-    }
-    function purchase(uint256 _tokenId, uint256 _purchaseCount) public{
-        require(_owns(msg.sender, _tokenId));
-        nonFungibleContract.setApprovalForAll(address(this),true);
-        nonFungibleContract.approve(address(this), _tokenId);
-        nonFungibleContract.transferFrom(msg.sender, CEOAdress, _tokenId);
-        PurchaseIngots memory purchaseIngots = PurchaseIngots(
-            msg.sender,
-            _tokenId,
-            _purchaseCount
-        );
-        tokenIdToPurchase[_tokenId] = purchaseIngots;
-        emit PurchaseIngotsSuccessful(_tokenId, _purchaseCount, msg.sender);
     }
 }

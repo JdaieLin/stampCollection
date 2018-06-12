@@ -109,6 +109,7 @@ contract('StampCollection', function(accounts) {
     });
   });
 
+//此处的测试数据依据上面的测试数据, accounts[2]拥有tokenId为0的邮票
   it("用户创建一个交易，", function() {
     return StampCollection.deployed().then(function(instance) {
       stamp = instance;
@@ -123,6 +124,16 @@ contract('StampCollection', function(accounts) {
       return stamp.ownerOf.call(0);
     }).then(function(ownerAddress) {
       assert.equal(ownerAddress, accounts[3], "使用accounts[3]购买，但是tokenId为0的所有者部位accounts[3]");
+    });
+  });
+
+//此处的测试数据依据上面的测试数据
+  it("用户发起使用邮票换元宝交易--系统回购", function() {
+    return stamp.repoIngots(0, 123456, {from:accounts[3]}).then(function() {
+      return stamp.repoIngotsInfo(0);
+    }).then(function(result) {
+      assert.equal(result[1], 123456, "换购的元宝数量不对");
+      assert.equal(result[2], accounts[3], "换购的卖方地址不对");
     });
   });
 });
