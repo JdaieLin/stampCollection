@@ -39,6 +39,9 @@ const actions = {
         dispatch('getLoopSlideInit')
         // get album
         dispatch('getAlbum')
+        dispatch('getYearBook')
+        // get trade
+        dispatch('getTrade')
       }
     })
   }

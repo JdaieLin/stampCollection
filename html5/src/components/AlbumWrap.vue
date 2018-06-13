@@ -27,7 +27,7 @@ export default {
     }
   },
   props: {
-    year: String,
+    year: Number,
     name: String,
     completeCollected: Boolean,
     lock: Boolean,

@@ -1,7 +1,7 @@
 <template>
   <div class="stamp-sizer">
     <figure class="stamp-wrap" ref="figure" :class="[frame?null:'no-frame', type, lock?'lock': null]">
-      <img class="stamp-img" :src="imgSrc" alt="">
+      <img class="stamp-img" :src="imgSrc" alt="" :style="dirtBrightness">
       <div class="stamp-frame top"></div>
       <div class="stamp-frame bottom"></div>
       <div class="stamp-frame right"></div>
@@ -12,6 +12,11 @@
         <div class="fr left"></div>
         <div class="fr right"></div>
         <div class="mask" :style="'opacity: ' + maskOpacity"></div>
+      </div>
+      <div v-if="level" class="dirt">
+        <div class="crack" :style="dirtCrack"></div>
+        <div class="stain" :style="dirtStain"></div>
+        <div class="mark" :style="dirtMark"></div>
       </div>
     </figure>
     <div class="sizer" ref="sizer"></div>
@@ -34,7 +39,8 @@ export default {
     lock: {
       type: Boolean,
       value: false
-    }
+    },
+    stamp: Object
   },
   data () {
     return {
@@ -48,12 +54,71 @@ export default {
   },
   watch: {
     imgSrc (val, oldVal) {
-      this.computeSize()
+      let that = this
+      setTimeout(function () {
+        that.computeSize()
+      }, 500)
     }
   },
   computed: {
+    dirtBrightness () {
+      if (!this.stamp) return null
+      if (this.stamp.brightness) {
+        return `opacity:${1 - this.stamp.brightness / 2.5}`
+      } else {
+        return 0
+      }
+    },
+    dirtCrack () {
+      if (!this.stamp) return null
+      if (this.stamp.crack) {
+        let counts = 4
+        let step = 1 / counts
+        let value = this.stamp.crack
+        let bg = 0
+        while (value > 0) {
+          bg++
+          value -= step
+        }
+        return `opacity:${this.stamp.crack / 1.5};background-image:url(/static/ui/dirt/dirtCracks.0${bg}.png)`
+      } else {
+        return null
+      }
+    },
+    dirtStain () {
+      if (!this.stamp) return null
+      if (this.stamp.stain) {
+        let counts = 8
+        let step = 1 / counts
+        let value = this.stamp.stain
+        let bg = 0
+        while (value > 0) {
+          bg++
+          value -= step
+        }
+        return `opacity:${this.stamp.crack / 1.5};background-image:url(/static/ui/dirt/dirtSplash.0${bg}.png)`
+      } else {
+        return null
+      }
+    },
+    dirtMark () {
+      if (!this.stamp) return null
+      if (this.stamp.mark) {
+        let counts = 6
+        let step = 1 / counts
+        let value = this.stamp.mark
+        let bg = 0
+        while (value > 0) {
+          bg++
+          value -= step
+        }
+        return `opacity:${this.stamp.crack / 1.5};background-image:url(/static/ui/dirt/dirtStamp.0${bg}.png)`
+      } else {
+        return null
+      }
+    },
     frameClass () {
-      let className = 'black'
+      let className = 'white'
       if (this.level <= 60) {
         className = 'black'
       } else if (this.level <= 70) {
@@ -68,7 +133,7 @@ export default {
       return className
     },
     maskOpacity () {
-      let colorMask = 0.6
+      let colorMask = 1
       if (this.level <= 60) {
         colorMask = 1
       } else if (this.level <= 70) {
@@ -111,10 +176,8 @@ export default {
       } else {
         figure.style.width = ch * this.ratio + 'px'
       }
-      setTimeout(function () {
-        figure.style.transition = 'all 0.1s ease-in-out'
-        figure.style.opacity = '1'
-      }, 10)
+      figure.style.transition = 'all 0.2s ease-in-out'
+      figure.style.opacity = '1'
     }
   }
 }
@@ -154,6 +217,26 @@ export default {
     &.no-frame{
       padding: 0;
     }
+    .dirt{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      div{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background-size: cover;
+        opacity: 0;
+      }
+      .brightness{
+        background-color: #fff;
+      }
+    }
     .material-frame{
       position: absolute;
       width: 100%;
@@ -161,6 +244,9 @@ export default {
       top: 0;
       left: 0;
       z-index: 20;
+      &.white .fr {
+        background-color: white;
+      }
       &.gold .fr {
         background-image: url("/static/ui/material.gold.jpg");
       }
@@ -369,7 +455,7 @@ export default {
       line-height: 0;
       display: block;
       vertical-align: top;
-      transform: scale(1.055);
+      transform: scale(1.08);
     }
   }
 </style>
