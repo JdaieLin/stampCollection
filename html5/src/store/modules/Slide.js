@@ -5,6 +5,7 @@ const slideLength = 15
 
 const state = {
   stamps: [],
+  randomCoin: 0,
   currentStamp: null,
   currentLoopList: [],
   currentLoopIndex: 0,
@@ -84,11 +85,15 @@ const mutations = {
       // save slide result
       state.slideResultList.push({
         stamp_id: state.currentStamp.id,
-        action: state.currentStamp.action
+        action: state.currentStamp.action,
+        coin: state.randomCoin
       })
     }
     state.currentLoopIndex = index
     state.currentStamp = state.currentLoopList[state.currentLoopIndex]
+  },
+  GET_RANDOM_COIN (state) {
+    state.randomCoin = 1 + Math.floor(Math.random() * 10)
   },
   SET_BAD (state) {
     state.currentStamp.action = 0
@@ -168,9 +173,14 @@ const actions = {
   reverseSlide ({commit}) {
     commit('REVERSE_SLIDE')
   },
+  slideRandomCoin ({ commit }) {
+    commit('GET_RANDOM_COIN')
+  },
   syncSlideReult ({commit, rootState}) {
     let data = {
       user_id: rootState.User.user_id,
+      coins: state.slideResultList.map(i => i.coin).reduce((a, b) => a + b),
+      times: state.slideResultList.length,
       stamps: state.slideResultList
     }
     commit('CLEAR_SLIDE_RESULT')

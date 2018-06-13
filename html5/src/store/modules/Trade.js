@@ -1,3 +1,6 @@
+import Vue from 'vue'
+import apiHost from '../host'
+
 const state = {
   tradeList: []
 }
@@ -7,18 +10,24 @@ const state = {
 // http post : /api/deal/accept
 
 const mutations = {
-  DECREMENT_MAIN_COUNTER (state) {
-    state.main--
-  },
-  INCREMENT_MAIN_COUNTER (state, payload) {
-    state.main += payload
+  UPDATE_TRADE_LIST (state, newList) {
+    state.tradeList = newList
   }
 }
 
 const actions = {
-  someAsyncTask ({ commit }, payload) {
-    // do something async
-    commit('INCREMENT_MAIN_COUNTER', payload)
+  getTrade ({ commit, rootState }) {
+    Vue.http.post(apiHost + '/api/deal/list', {
+      user_id: rootState.User.user_id
+    }).then((response) => {
+      if (response.data.success) {
+        console.log(response.data)
+        let tradeList = response.data.result.deals
+        if (tradeList) {
+          commit('UPDATE_TRADE_LIST', tradeList)
+        }
+      }
+    })
   }
 }
 

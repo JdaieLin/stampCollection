@@ -143,8 +143,10 @@ export default {
     },
     slideChange (index) {
       this.currentPage = index
+      this.$store.dispatch('slideRandomCoin')
+      let coins = this.$store.state.Slide.randomCoin
       this.$store.dispatch('changeLoopIndex', index)
-      this.$store.dispatch('coinIncrease', 10)
+      this.$store.dispatch('coinIncrease', coins)
       this.syncCount = 4
       this.isFavor = false
     },
