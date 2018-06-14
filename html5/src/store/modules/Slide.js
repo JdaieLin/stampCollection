@@ -176,6 +176,30 @@ const actions = {
   slideRandomCoin ({ commit }) {
     commit('GET_RANDOM_COIN')
   },
+  slideCollect ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/collect', data).then((response) => {
+      if (response.data.success) {
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
+  slideBuy ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/buy', data).then((response) => {
+      if (response.data.success) {
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
   syncSlideReult ({commit, rootState}) {
     let data = {
       user_id: rootState.User.user_id,

@@ -26,7 +26,7 @@
       </div>
       <div class="stamp-info">
         <div class="title"><span class="name">{{item.name != '-' ? item.name : item.set_name}},</span><span class="age">{{item.year}}</span></div>
-        <div class="detail"><span class="grade">品相等级: {{item.score}}</span><span class="count">剩余量 {{item.amount}}/{{item.volume}}</span></div>
+        <div class="detail"><span class="grade">品相等级: {{item.score}}</span><span class="count">剩余量 {{item.remain}}/{{item.volume}}</span></div>
       </div>
     </li>
   </ul>

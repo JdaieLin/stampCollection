@@ -5,6 +5,7 @@ const state = {
   collectList: [],
   collectBoughtList: [],
   boughtList: [],
+  tradingList: [],
   finalBoughtList: [],
   collectBook: [],
   boughtBook: [],
@@ -19,7 +20,8 @@ const state = {
 const mutations = {
   UPDATE_YEAR_BOOK (state, newList) {
     let year = ''
-    state.allStamp.length = 0
+    state.allStamp = []
+    state.yearBook = []
     for (let i in newList) {
       newList[i].set_name = newList[i].name
       newList[i].set = newList[i].Atlas[0].set
@@ -45,11 +47,11 @@ const mutations = {
     }
   },
   UPDATE_BOOKS (state) {
-    state.collectBook.length = 0
-    state.boughtBook.length = 0
     // 更新收藏邮册
+    state.collectBook = []
     let collectBook = state.collectList.filter((i, k, a) => a.map(j => j.set).indexOf(i.set) === k).sort((a, b) => b.year - a.year)
     for (let i in collectBook) {
+      collectBook[i].lock = false
       state.collectBook.push(collectBook[i])
     }
     // 更新购买邮票总列表
@@ -61,21 +63,24 @@ const mutations = {
       i.boughtType = 'collect'
       return i
     })
-    let finalBoughtList = [...state.boughtList, ...state.collectBoughtList].sort((a, b) => b.year - a.year)
-    for (let i in finalBoughtList) {
-      state.finalBoughtList.push(finalBoughtList[i])
-    }
+    state.tradingList = state.tradingList.map(i => {
+      i.trading = true
+      return i
+    })
+    let finalBoughtList = [...state.boughtList, ...state.collectBoughtList, ...state.tradingList].sort((a, b) => b.year - a.year)
+    state.finalBoughtList = finalBoughtList
     // 更新购买邮册
-    state.boughtBook.length = 0
+    state.boughtBook = []
     let boughtBook = []
     for (let i in finalBoughtList) {
       let set = finalBoughtList[i].set
+      finalBoughtList[i].lock = false
       if (boughtBook[set] == null) {
         boughtBook.push(finalBoughtList[i])
         boughtBook[set] = finalBoughtList[i]
-        state.boughtBook.push(boughtBook[i])
       }
     }
+    state.boughtBook = boughtBook
     // 集合多品相单张 collectList
     let newCollectList = {}
     for (let i in state.collectList) {
@@ -86,7 +91,7 @@ const mutations = {
         newCollectList[atlas].push(state.collectList[i])
       }
     }
-    state.collectList.length = 0
+    state.collectList = []
     for (let i in newCollectList) {
       if (newCollectList[i].length === 1) {
         state.collectList.push(newCollectList[i][0])
@@ -109,12 +114,12 @@ const mutations = {
         newBuyList[atlas].push(state.finalBoughtList[i])
       }
     }
-    state.finalBoughtList.length = 0
+    finalBoughtList = []
     for (let i in newBuyList) {
       if (newBuyList[i].length === 1) {
-        state.finalBoughtList.push(newBuyList[i][0])
+        finalBoughtList.push(newBuyList[i][0])
       } else {
-        state.finalBoughtList.push({
+        finalBoughtList.push({
           multiple: true,
           set: newBuyList[i][0].set,
           serial_id: newBuyList[i][0].serial_id,
@@ -122,6 +127,7 @@ const mutations = {
         })
       }
     }
+    state.finalBoughtList = finalBoughtList
   },
   UPDATE_COLLECT_LIST (state, newList) {
     if (!newList) return
@@ -144,6 +150,13 @@ const mutations = {
       state.collectBoughtList.push(newList[i])
     }
   },
+  UPDATE_TRADING_LIST (state, newList) {
+    if (!newList) return
+    state.tradingList.length = 0
+    for (let i in newList) {
+      state.tradingList.push(newList[i])
+    }
+  },
   UNLOCK_SINGLE_BOOK (state, id) {
     for (let i in state.yearBook) {
       if (state.yearBook[i].id === id) {
@@ -155,13 +168,14 @@ const mutations = {
 
 const actions = {
   getAlbum ({ commit, rootState }) {
+    let fin = 4
     Vue.http.post(apiHost + '/api/stamp/list', {
       user_id: rootState.User.user_id,
       status: [101] // 已收藏
     }).then((response) => {
       if (response.data.success) {
         commit('UPDATE_COLLECT_LIST', response.data.result.Stamps)
-        commit('UPDATE_BOOKS')
+        if (!--fin) commit('UPDATE_BOOKS')
       }
     })
     Vue.http.post(apiHost + '/api/stamp/list', {
@@ -170,7 +184,7 @@ const actions = {
     }).then((response) => {
       if (response.data.success) {
         commit('UPDATE_COLLECT_BOUGHT_LIST', response.data.result.Stamps)
-        commit('UPDATE_BOOKS')
+        if (!--fin) commit('UPDATE_BOOKS')
       }
     })
     Vue.http.post(apiHost + '/api/stamp/list', {
@@ -179,7 +193,16 @@ const actions = {
     }).then((response) => {
       if (response.data.success) {
         commit('UPDATE_BOUGHT_LIST', response.data.result.Stamps)
-        commit('UPDATE_BOOKS')
+        if (!--fin) commit('UPDATE_BOOKS')
+      }
+    })
+    Vue.http.post(apiHost + '/api/stamp/list', {
+      user_id: rootState.User.user_id,
+      status: [104] // 交易中
+    }).then((response) => {
+      if (response.data.success) {
+        commit('UPDATE_TRADING_LIST', response.data.result.Stamps)
+        if (!--fin) commit('UPDATE_BOOKS')
       }
     })
   },
@@ -209,6 +232,30 @@ const actions = {
     }).then((response) => {
       if (response.data.success) {
         commit('UNLOCK_SINGLE_BOOK', serialId)
+      }
+    })
+  },
+  albumBuyStamp ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/buy', data).then((response) => {
+      if (response.data.success) {
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
+  albumRecycleStamp ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/recycle', data).then((response) => {
+      if (response.data.success) {
+        dispatch('getAlbum')
+        dispatch('getTrade')
       }
     })
   }

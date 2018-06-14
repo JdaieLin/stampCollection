@@ -17,8 +17,8 @@
             <div class="album-wrap" :key="'album_'+index">
               <AlbumWrap :name="album.set_name"
                          :year="album.year"
-                         :lock="album.lock"
                          :coverUrl="album.image"
+                         :lock="album.lock"
                          @click="checkAlbum(album.set, album.lock)"></AlbumWrap>
             </div>
           </template>
@@ -27,7 +27,7 @@
     </div>
     <div class="serial-page" v-if="pageLevel == 'serial'">
       <div class="back" @click="backToAlbum"></div>
-      <div class="action-btn" v-if="currentAlbumTab=='bought'" @click="sellSerial">出售</div>
+      <div class="action-btn" v-if="currentAlbumTab=='bought'" @click="openSellModal">出售全套</div>
       <div class="title">{{setName}}</div>
       <div class="serial-page--wrapper">
         <div class="serial-page--shelf">
@@ -80,24 +80,29 @@
                      :stamp="currentStamp"></StampWrap>
         </div>
         <div class="single-detail">
-          <div class="stamp-title">{{currentStamp.name}}, {{currentStamp.year}}</div>
+          <div class="stamp-title">{{currentStamp.name!='-'?currentStamp.name:currentStamp.set_name}}, {{currentStamp.year}}</div>
           <div class="stamp-counts">
             <span class="level" v-if="currentAlbumTab!='year'">品相：{{currentStamp.score}}</span>
             <span class="type">{{currentStamp.type}}</span>
             <span class="num">剩余量：{{currentStamp.remain}}/{{currentStamp.volume}}</span>
           </div>
           <div class="stamp-desc">{{currentStamp.desc}}</div>
-          <div class="stamp-action" v-if="currentStamp.boughtType">
-            <span class="action-btn green" @click="sell">交易</span>
-            <span class="action-btn white wide" @click="sellToPlatform">出售给平台</span>
-            <span class="action-text green" v-if="currentStamp.boughtType == 'collect'">已获得（收藏满一个月）</span>
-            <span class="action-text green" v-if="currentStamp.boughtType == 'buy'">已于{{currentStamp.buyTime}}购买</span>
-          </div>
-          <div class="stamp-action" v-else>
-            <span class="action-btn green" @click="buyStamp">购买</span>
-            <!--<span class="action-btn white" @click="extendExpire">延期</span>-->
-            <span class="action-text">{{currentStamp.expire}}</span>
-          </div>
+          <template v-if="currentAlbumTab!='year'">
+            <div class="stamp-action" v-if="currentStamp.boughtType">
+              <span class="action-btn green" @click="openSellModal">交易</span>
+              <span class="action-btn white wide" @click="openRecycleModal">出售给平台</span>
+              <span class="action-text green" v-if="currentStamp.boughtType == 'collect'">已获得（收藏满一个月）</span>
+              <span class="action-text green" v-if="currentStamp.boughtType == 'buy'">已于{{currentStamp.buyTime}}购买</span>
+            </div>
+            <div class="stamp-action" v-else-if="currentStamp.trading">
+              <span class="action-text">交易中</span>
+            </div>
+            <div class="stamp-action" v-else>
+              <span class="action-btn green" @click="openBuyModal">购买</span>
+              <!--<span class="action-btn white" @click="extendExpire">延期</span>-->
+              <span class="action-text">{{currentStamp.expire}}</span>
+            </div>
+          </template>
         </div>
         <div class="single-close" @click="closeSingle"></div>
       </div>
@@ -106,12 +111,51 @@
       <div class="modal-center">
         <div class="modal-text">
           <p>将花费铜钱</p>
-          <p><span class="coins"></span> x 1000</p>
+          <p><span class="coins-icon"></span> x 1000</p>
           <p>解锁该邮册</p>
         </div>
         <div class="btn-wrap">
           <div class="theme-btn action-btn white" @click="closeUnlockModal">取消</div>
-          <div class="theme-btn action-btn green" @click="unlockAlum">确定</div>
+          <div class="theme-btn action-btn green" @click="unlockAlbum">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal buy-modal" v-if="buyModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>将花费以太币</p>
+          <p><span class="eth-icon"></span> x {{Math.ceil(currentStamp.floor*1000)/1000}}</p>
+          <p>购买该邮票</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closebuyModal">取消</div>
+          <div class="theme-btn action-btn green" @click="buyStamp">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal recycle-modal" v-if="recycleModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>出售给平台获得元宝</p>
+          <p><span class="ingot-icon"></span> x {{Math.ceil(currentStamp.floor)}}</p>
+          <p class="tip">出售给平台只能获得元宝</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeRecycleModal">取消</div>
+          <div class="theme-btn action-btn green" @click="recycleStamp">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal recycle-modal" v-if="sellModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>将以下列价格出售该邮票</p>
+          <p><span class="eth-icon"></span> x <input type="text" :value="sellPrice" @change="priceChange"></p>
+          <p class="tip">平台将收取售价1%作为交易手续费</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeSellModal">取消</div>
+          <div class="theme-btn action-btn green" @click="sellStamp">确定</div>
         </div>
       </div>
     </div>
@@ -139,7 +183,13 @@ export default {
       currentStamp: {},
       currentMultiple: [],
       unlockModal: false,
-      unlockId: 0
+      unlockId: 0,
+      buyModal: false,
+      recycleModal: false,
+      sellIds: [],
+      sellPrice: 0,
+      sellDefaultPrice: 100,
+      sellModal: false
     }
   },
   mounted () {
@@ -255,30 +305,81 @@ export default {
     closeUnlockModal () {
       this.unlockModal = false
     },
-    unlockAlum () {
+    unlockAlbum () {
       // 检测铜钱数量
       this.$store.dispatch('unlockBook', this.unlockId)
       this.unlockModal = false
-      this.currentAlbumTab = ''
+      this.actionRefresh()
+    },
+    actionRefresh () {
+      let tab = this.currentAlbumTab
       let that = this
+      this.currentAlbumTab = ''
       setTimeout(function () {
-        that.currentAlbumTab = 'year'
-      }, 500)
+        that.currentAlbumTab = tab
+      }, 200)
+    },
+    openBuyModal (e) {
+      this.buyModal = true
+      e.stopPropagation()
+    },
+    closebuyModal () {
+      this.buyModal = false
     },
     buyStamp (e) {
+      this.buyModal = false
+      this.$store.dispatch('albumBuyStamp', this.currentStamp)
       e.stopPropagation()
     },
-    extendExpire (e) {
+    openRecycleModal (e) {
+      this.recycleModal = true
       e.stopPropagation()
     },
-    sellToPlatform (e) {
+    closeRecycleModal () {
+      this.recycleModal = false
+    },
+    recycleStamp (e) {
+      this.recycleModal = false
+      this.$store.dispatch('albumRecycleStamp', this.currentStamp)
       e.stopPropagation()
     },
-    sell (e) {
+    openSellModal (e) {
+      this.sellPrice = this.sellDefaultPrice
+      this.sellModal = true
+      let minPrice = 0
+      if (this.single) {
+        this.sellIds = [this.currentStamp.id]
+        minPrice += this.currentStamp.floor
+      } else {
+        for (let i in this.currentSerial) {
+          let item = this.currentSerial[i]
+          if (item.multiple) {
+            for (let j in item.list) {
+              this.sellIds.push(item.list[j].id)
+              minPrice += item.list[j].floor
+            }
+          } else {
+            this.sellIds.push(item.id)
+            minPrice += item.floor
+          }
+        }
+      }
+      this.sellPrice = Math.ceil(minPrice)
       e.stopPropagation()
     },
-    sellSerial (e) {
-      e.stopPropagation()
+    closeSellModal () {
+      this.sellModal = false
+    },
+    priceChange (e) {
+      this.sellPrice = parseInt(e.target.value)
+    },
+    sellStamp () {
+      this.$store.dispatch('createDeal', {
+        stampIds: this.sellIds,
+        price: this.sellPrice
+      })
+      this.actionRefresh()
+      this.sellModal = false
     }
   }
 }
@@ -420,7 +521,7 @@ export default {
     align-items: center;
     justify-content: center;
     font-size: 12px;
-    width: 50px;
+    width: 60px;
     height: 24px;
     border-radius: 12px;
     color: white;
@@ -692,7 +793,7 @@ export default {
   width: 100%;
   height: 100%;
   background-color: #000000aa;
-  z-index: 1000;
+  z-index: 3000;
   .modal-center{
     position: relative;
     top: -30px;
@@ -707,13 +808,39 @@ export default {
         font-size: 14px;
         line-height: 14px;
         vertical-align: center;
+        &.tip{
+          font-size: 12px;
+        }
+        input{
+          width: 40px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          padding: 4px;
+        }
       }
-      .coins{
+      .coins-icon{
         display: inline-block;
-        width: 30px;
-        height: 30px;
+        width: 24px;
+        height: 24px;
         background-image: url(/static/ui/coin.png);
         background-size: contain;
+        background-repeat: no-repeat;
+      }
+      .eth-icon{
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background-image: url(/static/ui/ether.png);
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
+      .ingot-icon{
+        display: inline-block;
+        width: 30px;
+        height: 18px;
+        background-image: url(/static/ui/ignotMini.png);
+        background-size: contain;
+        background-position: center;
         background-repeat: no-repeat;
       }
     }

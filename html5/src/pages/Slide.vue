@@ -36,12 +36,12 @@
         <div class="favor-icon"></div>
         <div class="col">
           <div class="text">花费元宝</div>
-          <div class="text"><span class="icon ingot-icon"></span> x 20</div>
+          <div class="text"><span class="icon ingot-icon"></span> x {{Math.ceil($store.state.Slide.currentStamp.floor)}}</div>
           <div class="action-btn theme-btn white" @click="actionCollect">收藏五天</div>
         </div>
         <div class="col">
           <div class="text">花费以太币</div>
-          <div class="text"><span class="icon eth-icon"></span> x 10</div>
+          <div class="text"><span class="icon eth-icon"></span> x {{Math.ceil($store.state.Slide.currentStamp.floor*100)/100}}</div>
           <div class="action-btn theme-btn green" @click="actionBuy">直接购买</div>
         </div>
         <div class="close-btn" @click="closeAskModal"></div>
@@ -133,10 +133,14 @@ export default {
       e.stopPropagation()
     },
     actionCollect () {
-      console.log('collect', this.$store.state.Slide.currentStamp)
+      this.$store.dispatch('slideCollect', this.$store.state.Slide.currentStamp)
+      this.$refs.stack.$emit('next')
+      this.askModal = false
     },
     actionBuy () {
-      console.log('buy', this.$store.state.Slide.currentStamp)
+      this.$store.dispatch('slideBuy', this.$store.state.Slide.currentStamp)
+      this.$refs.stack.$emit('next')
+      this.askModal = false
     },
     closeAskModal () {
       this.askModal = false
