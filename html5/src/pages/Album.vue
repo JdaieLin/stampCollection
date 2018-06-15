@@ -264,15 +264,15 @@ export default {
           let offsetLeft = elems[i].getBoundingClientRect().x
           let ox = (pageX - offsetWidth / 2) - offsetLeft
           let oy = (pageY - offsetHeight / 2) - offsetTop
-          elems[i].style.transform = 'translate(' + ox + 'px,' + oy + 'px)scale(0.7)'
-          elems[i].style.webkitTransform = 'translate(' + ox + 'px,' + oy + 'px)scale(0.7)'
+          elems[i].style.transform = 'translate3d(' + ox + 'px,' + oy + 'px, 0)scale(0.7)'
+          elems[i].style.webkitTransform = 'translate3d(' + ox + 'px,' + oy + 'px, 0)scale(0.7)'
         }
         setTimeout(function () {
           for (let i in elems) {
             elems[i].style.transition = 'all 0.3s ease-out'
             elems[i].style.webkitTransition = 'all 0.3s ease-out'
-            elems[i].style.transform = 'translate(0,0)'
-            elems[i].style.webkitTransform = 'translate(0,0)'
+            elems[i].style.transform = 'translate3d(0,0,0)'
+            elems[i].style.webkitTransform = 'translate3d(0,0,0)'
             elems[i].style.opacity = '1'
           }
         }, 0)
@@ -328,6 +328,7 @@ export default {
     },
     buyStamp (e) {
       this.buyModal = false
+      this.single = false
       this.$store.dispatch('albumBuyStamp', this.currentStamp)
       e.stopPropagation()
     },
@@ -340,6 +341,7 @@ export default {
     },
     recycleStamp (e) {
       this.recycleModal = false
+      this.single = false
       this.$store.dispatch('albumRecycleStamp', this.currentStamp)
       e.stopPropagation()
     },
@@ -380,6 +382,7 @@ export default {
       })
       this.actionRefresh()
       this.sellModal = false
+      this.single = false
     }
   }
 }

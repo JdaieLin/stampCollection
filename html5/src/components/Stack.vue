@@ -337,6 +337,7 @@ export default {
       width: 100%;
       height: calc(100% - 65px);
       padding: 20px;
+      transform: scale3d(1,1,1);
     }
     .stamp-info{
       position: absolute;

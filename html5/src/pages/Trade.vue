@@ -420,6 +420,7 @@ export default {
         width: 100%;
       }
       .trade-item{
+        transform: scale3d(1,1,1);
         .stamp-list-item{
           height: @stampRowHeightTrade;
         }
@@ -581,6 +582,7 @@ export default {
       justify-content: center;
       width: 80%;
       height: 80%;
+      transform: scale3d(1,1,1);
     }
   }
   .multiple-warp{
@@ -606,6 +608,7 @@ export default {
         width: 100%;
         height: 140px;
         margin-bottom: 20px;
+        transform: scale3d(1,1,1);
         .image-wrap{
           position: absolute;
           display: flex;

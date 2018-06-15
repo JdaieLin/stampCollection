@@ -1,6 +1,7 @@
 <template>
   <div class="album-item" ref="album" :class="lock?'lock':null" @click="click">
-    <img class="album-cover-bg" :src="coverUrl" alt="">
+    <img class="album-cover-bg" :class="isiOS?null:'blur'" :src="coverUrl" alt="">
+    <div v-if="isiOS" class="back-drop"></div>
     <div class="img-wrap">
       <StampWrap :imgSrc="coverUrl" :type="'thumb'" :padding="padding"></StampWrap>
     </div>
@@ -23,7 +24,8 @@ export default {
   },
   data () {
     return {
-      padding: 22
+      padding: 22,
+      isiOS: false
     }
   },
   props: {
@@ -38,6 +40,8 @@ export default {
     if (this.type === 'trade') {
       this.padding = 14
     }
+    let ua = navigator.userAgent.toLowerCase()
+    this.isiOS = ua.indexOf('iphone') >= 0
   },
   methods: {
     click () {
@@ -87,7 +91,10 @@ export default {
         filter: grayscale(100%);
       }
       .album-cover-bg{
-        filter: blur(15px)grayscale(100%);
+        filter: grayscale(100%);
+      }
+      .album-cover-bg.blur{
+        filter: blur(15px) grayscale(100%);
       }
       &:before{
         content: "";
@@ -132,10 +139,21 @@ export default {
       width: 160%;
       height: 160%;
       object-fit: cover;
-      filter: blur(15px)brightness(70%);
       transform: scale3d(1,1,1);
       opacity: 1;
       pointer-events: none;
+      &.blur{
+        filter: blur(15px) brightness(70%);
+      }
+    }
+    .back-drop{
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #00000066;
+      backdrop-filter: saturate(180%) blur(20px);
     }
     .album-name{
       position: absolute;
