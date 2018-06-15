@@ -225,6 +225,7 @@ export default {
       top: 0;
       left: 0;
       z-index: 100;
+      transform: scale3d(1,1,1);
       div{
         position: absolute;
         width: 100%;
@@ -233,6 +234,7 @@ export default {
         left: 0;
         background-size: cover;
         opacity: 0;
+        transform: scale3d(1,1,1);
       }
       .brightness{
         background-color: #fff;
