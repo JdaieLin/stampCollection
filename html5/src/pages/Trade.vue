@@ -334,7 +334,7 @@ export default {
         height: 1px;
         bottom: -1px;
         left: 0;
-        box-shadow: 0 0 10px 5px #0000001e;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.12);
       }
       &.active{
         background-color: @themeColor;
@@ -355,7 +355,7 @@ export default {
     width: 100%;
     height: calc(100% - 110px);
     background-color: #fff;
-    box-shadow: 0 0 10px 5px #0000001e;
+    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.12);
     &:before{
       content: '';
       position: absolute;
@@ -573,7 +573,7 @@ export default {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: #000000cc;
+    background-color: rgba(0, 0, 0, 0.8);
     z-index: 10;
     .single-center{
       position: relative;
@@ -592,7 +592,7 @@ export default {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: #000000cc;
+    background-color: rgba(0, 0, 0, 0.8);
     z-index: 10;
     .multiple-center{
       position: relative;
@@ -641,7 +641,7 @@ export default {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: #000000aa;
+    background-color: rgba(0, 0, 0, 0.67);
     z-index: 3000;
     .modal-center{
       position: relative;

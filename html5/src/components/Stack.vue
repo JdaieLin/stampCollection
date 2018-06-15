@@ -328,7 +328,7 @@ export default {
     pointer-events: auto;
     background-color: #ddd;
     border: 1px solid #eaeaea;
-    box-shadow: 0 0 3px 3px #0000001e;
+    box-shadow: 0 0 3px 3px rgba(0, 0, 0, 0.12);
     .img-wrap{
       display: flex;
       align-items: center;

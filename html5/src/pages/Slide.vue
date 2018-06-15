@@ -301,7 +301,7 @@ export default {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: #000000aa;
+    background-color: rgba(0, 0, 0, 0.67);
     z-index: 1000;
     .modal-center{
       position: relative;
@@ -309,7 +309,7 @@ export default {
       height: 200px;
       background-color: #fff;
       border-radius: 8px;
-      box-shadow: 0 0 10px 5px #0000005e;
+      box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.37);
       display: flex;
       flex-wrap: wrap;
       padding: 20px;

@@ -437,7 +437,7 @@ export default {
         height: 1px;
         bottom: -1px;
         left: 0;
-        box-shadow: 0 0 10px 5px #0000001e;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.12);
       }
       &.active{
         background-color: @themeColor;
@@ -461,7 +461,7 @@ export default {
     border-radius: 8px 8px 0 0;
     background-color: #fff;
     overflow-y: scroll;
-    box-shadow: 0 0 10px 3px #0000002e;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.18);
     -webkit-overflow-scrolling: touch;
     .sort{
       position: relative;
@@ -552,7 +552,7 @@ export default {
     border-radius: 8px 8px 0 0;
     background-color: #fff;
     overflow: auto;
-    box-shadow: 0 0 10px 3px #0000003e;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.24);
     -webkit-overflow-scrolling: touch;
     .serial-page--shelf{
       position: relative;
@@ -633,7 +633,7 @@ export default {
   top: 0;
   left: 0;
   z-index: 2000;
-  background-color: #000000cc;
+  background-color: rgba(0, 0, 0, 0.8);
   .single-wrap{
     position: absolute;
     top: 8%;
@@ -642,7 +642,7 @@ export default {
     height: 80%;
     border-radius: 6px;
     background-color: #fff;
-    box-shadow: 0 0 10px 5px #0000008e;
+    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.56);
   }
   .img-warp{
     position: absolute;

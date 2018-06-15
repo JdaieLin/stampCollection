@@ -83,7 +83,7 @@ export default {
     color: #aaa;
     border-radius: 4px;
     overflow: hidden;
-    box-shadow: 0 0 1px 2px #0000001e;
+    box-shadow: 0 0 1px 2px rgba(0, 0, 0, 0.12);
     transform: scale3d(1,1,1);
     transition: all 0.1s ease-in-out;
     &.lock{
@@ -103,7 +103,7 @@ export default {
         height: 100%;
         top: 0;
         left: 0;
-        background-color: #00000099;
+        background-color: rgba(0, 0, 0, 0.6);
         z-index: 100;
       }
       &:after{
@@ -152,7 +152,7 @@ export default {
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: #00000066;
+      background-color: rgba(0, 0, 0, 0.4);
       backdrop-filter: saturate(180%) blur(20px);
     }
     .album-name{

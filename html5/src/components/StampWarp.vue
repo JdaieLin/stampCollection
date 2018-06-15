@@ -206,14 +206,13 @@ export default {
     }
     &.large{
       padding: @material-weight;
-      box-shadow: 0 0 10px 8px #00000045;
+      box-shadow: 0 0 10px 8px rgba(0, 0, 0, 0.27);
     }
     &.list{
       padding: @material-weight-list;
-      box-shadow: 0 0 2px 5px #00000015;
+      box-shadow: 0 0 2px 5px rgba(0, 0, 0, 0.08);
     }
     &.thumb{
-      /*box-shadow: 0 0 2px 2px #00000055;*/
     }
     &.no-frame{
       padding: 0;

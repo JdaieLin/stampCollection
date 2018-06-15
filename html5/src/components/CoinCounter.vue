@@ -73,7 +73,7 @@ export default {
       background-color: #fff;
       border: 1px solid #ddd;
       border-radius: 3px;
-      box-shadow:1px 2px 3px 1px #0000001d inset;
+      box-shadow:1px 2px 3px 1px rgba(0, 0, 0, 0.11) inset;
       background-image: url(/static/ui/counter.number.jpg);
       background-size: 20px;
       background-position: 0 36px;

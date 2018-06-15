@@ -122,6 +122,13 @@ const mutations = {
       localStorage.setItem('reverseCountDate_' + new Date().toLocaleDateString(), state.canReverseTime)
     }
   },
+  SLIDE_AWAY (state) {
+    let awayIndex = state.currentLoopIndex ? (state.currentLoopIndex - 1) : slideLength - 1
+    let exchangeIndex = (awayIndex - 4 < 0) ? slideLength + awayIndex - 5 : awayIndex - 4
+    let temp = state.currentLoopList[awayIndex]
+    state.currentLoopList[awayIndex] = state.currentLoopList[exchangeIndex]
+    state.currentLoopList[exchangeIndex] = temp
+  },
   CLEAR_SLIDE_RESULT (state) {
     state.slideResultList = []
   }
@@ -183,6 +190,7 @@ const actions = {
     }
     Vue.http.post(apiHost + '/api/stamp/collect', data).then((response) => {
       if (response.data.success) {
+        commit('SLIDE_AWAY')
         dispatch('getAlbum')
         dispatch('getTrade')
       }
@@ -195,6 +203,7 @@ const actions = {
     }
     Vue.http.post(apiHost + '/api/stamp/buy', data).then((response) => {
       if (response.data.success) {
+        commit('SLIDE_AWAY')
         dispatch('getAlbum')
         dispatch('getTrade')
       }
