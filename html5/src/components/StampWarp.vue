@@ -171,6 +171,7 @@ export default {
       let figure = this.$refs.figure
       figure.style.margin = 'auto'
       figure.style.position = 'relative'
+      figure.style.width = ''
       if (this.ratio > cw / ch) {
         figure.style.width = cw + 'px'
       } else {

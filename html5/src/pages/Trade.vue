@@ -12,8 +12,12 @@
           <div class="group-item" :class="currentTag=='hot_album'?'active':null" @click="clickTag('hot_album')">热门套票</div>
         </div>
         <div v-if="currentTab=='buy'" class="group">
-          <div class="group-label">2018</div>
-          <div class="group-item" :class="currentTag=='xxx'?'active':null" @click="clickTag('xxx')">xxx</div>
+          <div class="group-label">系列</div>
+          <div class="group-item set"
+               v-for="(item, key) in serialTags"
+               :key="'tag_'+key"
+               :class="currentTag==item.set?'active':null"
+               @click="clickTag(item.set)">{{item.set_name}}</div>
         </div>
         <div v-if="currentTab=='sell'" class="group">
           <div class="group-label">出售中</div>
@@ -45,14 +49,14 @@
                 <div class="seller-head"></div>
                 <div class="seller-name">seller</div>
               </div>
-              <div v-if="currentTab=='buy'" class="btn buy">购买</div>
+              <div v-if="currentTab=='buy'" class="btn buy" @click="openBuyModal($event, { tradeId: item.trade_id, price: item.price })">购买</div>
               <div v-if="currentTag.indexOf('onsell_') == 0" class="btn buy" @click="openCancelModal($event,item.trade_id)">下架</div>
               <div v-if="currentTag.indexOf('sold_') == 0" class="btn sold">已出售</div>
             </div>
           </template>
           <template v-else-if="currentTag=='hot_stamp'">
             <!--三张邮票排列-->
-            <div v-for="(item, index) in tradeDisplayStamp" :key="'trade_' + index" class="trade-item stamp" @click="clickTag('xxx')">
+            <div v-for="(item, index) in tradeDisplayStamp" :key="'trade_' + index" class="trade-item stamp" @click="clickTag(item.set)">
               <div class="image-wrap album">
                 <StampWrap :imgSrc="item.image"
                            :type="'list'"
@@ -72,7 +76,7 @@
                              :frame="true"
                              :level="item.score"
                              :padding="6"
-                             :v-padding="10"
+                             :v-padding="1"
                              :stamp="item"></StampWrap>
                 </div>
                 <div class="stamp-detail">
@@ -85,8 +89,8 @@
                   <div class="seller-head"></div>
                   <div class="seller-name">seller</div>
                 </div>
-                <div v-if="currentTab=='buy'" class="btn buy">购买</div>
-                <div v-if="currentTag.indexOf('onsell_') == 0" class="btn buy" @click="openCancelModal($event,item.trade_id)">下架</div>
+                <div v-if="currentTab=='buy'" class="btn buy" @click="openBuyModal($event, { tradeId: item.trade_id, price: item.price })">购买</div>
+                <div v-if="currentTag.indexOf('onsell_') == 0" class="btn buy" @click="openCancelModal($event, item.trade_id)">下架</div>
                 <div v-if="currentTag.indexOf('sold_') == 0" class="btn sold">已出售</div>
               </div>
             </div>
@@ -136,6 +140,19 @@
         </div>
       </div>
     </div>
+    <div class="modal buy-modal" v-if="buyModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <br>
+          <p>将用以下价格进行购买</p>
+          <p><span class="eth-icon"></span> x {{buyItem.price}}</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeBuylModal">取消</div>
+          <div class="theme-btn action-btn green" @click="acceptTrade">确定</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -153,19 +170,26 @@ export default {
     return {
       tradeDisplayMulti: [],
       tradeDisplaySingle: {},
-      currentTab: 'sell',
-      currentTag: 'onsell_stamp',
+      currentTab: 'buy',
+      currentTag: 'hot_stamp',
       showSingle: false,
       showMultiple: false,
       buyTags: [],
       hotTags: [],
+      hotStampFilter: null,
       cancelModal: false,
-      cancelId: 0
+      cancelId: 0,
+      buyModal: false,
+      buyItem: {
+        tradeId: 0,
+        price: 0
+      }
     }
   },
   computed: {
     tradeDisplayStamp () {
       if (this.currentTab === 'sell' && this.currentTag === 'onsell_stamp') {
+        // 出售中邮票详情
         let stamps = this.$store.state.Trade.sellListSingle.map(i => {
           let stamp = i.stamps[0]
           stamp.price = i.price
@@ -174,9 +198,25 @@ export default {
         })
         return stamps
       } else if (this.currentTab === 'buy' && this.currentTag === 'hot_stamp') {
-        return this.$store.state.Trade.buyListSingle
-      } else if (this.currentTab === 'buy' && this.currentTag.indexOf('hot_') < 0) {
-        return []
+        // 购买热门邮票
+        let stamps = this.$store.state.Trade.buyListSingle.map(i => {
+          let stamp = i.stamps[0]
+          stamp.price = i.price
+          stamp.trade_id = i.id
+          return stamp
+        }).filter((i, k, a) => {
+          return k === a.map(j => j.atlas_id).indexOf(i.atlas_id)
+        })
+        return stamps
+      } else if (this.currentTab === 'buy' && this.currentTag.indexOf('hot_') < 0 && !this.hotStampFilter) {
+        // tag筛选邮票详情
+        let stamps = this.$store.state.Trade.buyListSingle.map(i => {
+          let stamp = i.stamps[0]
+          stamp.price = i.price
+          stamp.trade_id = i.id
+          return stamp
+        }).filter(i => i.set === this.currentTag)
+        return stamps
       }
       return []
     },
@@ -190,8 +230,24 @@ export default {
           return album
         })
         return album
+      } else if (this.currentTab === 'buy' && this.currentTag === 'hot_album') {
+        let album = this.$store.state.Trade.buyListAlbum.map(i => {
+          let album = i.stamps[0]
+          album.price = i.price
+          album.stamps = i.stamps
+          album.trade_id = i.id
+          return album
+        })
+        return album
       }
       return []
+    },
+    serialTags () {
+      let tags = this.$store.state.Trade.buyListSingle.map(i => {
+        let stamp = i.stamps[0]
+        return { set: stamp.set, set_name: stamp.set_name }
+      }).filter((i, k, a) => a.map(j => j.set).indexOf(i.set) === k)
+      return tags
     }
   },
   methods: {
@@ -203,8 +259,8 @@ export default {
         this.currentTag = 'onsell_stamp'
       }
     },
-    clickTag (name) {
-      this.currentTag = name
+    clickTag (set) {
+      this.currentTag = set
     },
     toggleSingle (bool, stamp) {
       if (stamp) this.tradeDisplaySingle = stamp
@@ -225,6 +281,22 @@ export default {
     cancelTrade () {
       this.$store.dispatch('cancelTrade', this.cancelId)
       this.cancelModal = false
+    },
+    openBuyModal (e, { tradeId, price }) {
+      e.stopPropagation()
+      console.log(tradeId, price)
+      this.buyItem = {
+        tradeId: tradeId,
+        price: price
+      }
+      this.buyModal = true
+    },
+    closeBuylModal () {
+      this.buyModal = false
+    },
+    acceptTrade () {
+      this.$store.dispatch('acceptTrade', this.buyItem.tradeId)
+      this.buyModal = false
     }
   }
 }
@@ -323,6 +395,9 @@ export default {
         }
         .group-item{
           margin: 5px 0;
+          &.set{
+            margin-bottom: 10px;
+          }
           &.active{
             font-weight: bold;
             color: @themeColor;
@@ -345,6 +420,9 @@ export default {
         width: 100%;
       }
       .trade-item{
+        .stamp-list-item{
+          height: @stampRowHeightTrade;
+        }
         &.stamp{
           position: relative;
           width: calc(33% - 10px);

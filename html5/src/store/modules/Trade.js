@@ -16,7 +16,7 @@ const state = {
 
 const mutations = {
   UPDATE_TRADE_LIST (state, { tradeList, userId }) {
-    tradeList = tradeList.filter(i => i.stamps).sort((a, b) => b.atlas_id - a.atlas_id)
+    tradeList = tradeList.filter(i => i.stamps).sort((a, b) => b.atlas_id - a.atlas_id).filter(i => i.status === 1)
     state.tradeList = tradeList
     state.sellListSingle = tradeList.filter(i => i.create_user_id === userId && i.stamps.length === 1)
     state.sellListAlbum = tradeList.filter(i => i.create_user_id === userId && i.stamps.length > 1)
@@ -68,6 +68,18 @@ const actions = {
       id: tradeId
     }
     Vue.http.post(apiHost + '/api/deal/destroy', data).then((response) => {
+      if (response.data.success) {
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
+  acceptTrade ({ commit, rootState, dispatch }, tradeId) {
+    let data = {
+      user_id: rootState.User.user_id,
+      deal_id: tradeId
+    }
+    Vue.http.post(apiHost + '/api/deal/accept', data).then((response) => {
       if (response.data.success) {
         dispatch('getAlbum')
         dispatch('getTrade')

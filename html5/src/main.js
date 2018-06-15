@@ -22,14 +22,14 @@ new Vue({
 })
 
 // 登录测试账号
-// store.dispatch('login', {
-//   login_id: 'balabala',
-//   login_password: 'aabbcc'
-// })
-
 store.dispatch('login', {
-  login_id: 'balabala2',
+  login_id: 'balabala',
   login_password: 'aabbcc'
 })
+
+// store.dispatch('login', {
+//   login_id: 'balabala2',
+//   login_password: 'aabbcc'
+// })
 
 document.body.addEventListener('touchstart', function () { })
