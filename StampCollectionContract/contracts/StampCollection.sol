@@ -127,27 +127,38 @@ contract StampAccessControl {
 }
 
 contract StampDataSource {
-        /*** DATA TYPES ***/
+    /*** DATA TYPES ***/
+    struct StampInfo {
+        uint32 setId;//set ID
+        uint32 typeId;//Unique stamp ID
+        uint32 totalAmount;//The total amount of stamps issued
+        uint32 remainingAmount;//The remainder of the stamp issue
+        uint16 year;//issuing year of Stamp 
+        uint16 idOfSet;//ID in a set of stamps
+        bytes32 name;//the name of Stamp 
+    }
+    //Information about a stamp
     struct Stamp {
-        uint32 stampId;
-        uint16 year;
-        uint16 setId;
-        uint8  memberOfSetId;
-        uint32 totalAmount;
-        uint32 remainingAmount;
-        bytes32 name;
+        uint32 typeId;
         uint8 appearance;
     }
-    
+    //Information on the stamp section
     struct StampSet {
         uint16 setId;
-        uint8[] membersId;
+        uint32[] typeIds;
     }
 
     /*** STORAGE ***/
+    StampInfo[] stampInfos;
+    mapping (uint32 => StampInfo) public TypeIdToStampInfo;//typeId -> StampInfo
+    
     Stamp[] stamps;
+    
     StampSet[] stampSets;
-    mapping(uint32=>uint256) internal SetIdOfStamp;
+    mapping (uint16 => StampSet) public SetIdToStampSet;//
+    mapping (uint32 => uint16) public TypeIdToSetId;//
+    mapping (uint16 => bool) public isExistSet;
+    mapping (uint32 => bool) public isExistStampType;
 }
 
 
@@ -603,46 +614,26 @@ contract ERC721TokenImplement is StampDataSource, ERC721, ERC721BasicToken {
 }
 
 contract StampBase is StampAccessControl, ERC721TokenImplement{
-    event CreateNewStamp(uint32 stampId, 
-                            uint32 totalAmount, 
-                            uint32 remainingAmount, 
-                            bytes32 name,
-                            uint16 year, 
-                            uint16 setId, 
-                            uint8  memberOfSetId,
-                            uint8 appearance
-                            );
+    event CreateNewStamp(uint32 typeId, uint8 appearance);
 
     function _createNewStamp(
-        uint32 _stampId,
-        uint32 _totalAmount,
-        uint32 _remainingAmount,
-        bytes32 _name,
-        uint16 _year,
-        uint16 _setId,
-        uint8 _memberOfSetId,
+        uint32 _typeId,
         uint8 _appearance
     )
         internal
         returns (uint newTokenId)
     {
-        require(_stampId == uint256(uint32(_stampId)));
+        require(_typeId == uint256(uint32(_typeId)));
 
         Stamp memory _stamp = Stamp({
-            stampId:_stampId,
-            year:_year,
-            setId:_setId,
-            memberOfSetId:_memberOfSetId,
-            totalAmount:_totalAmount,
-            remainingAmount:_remainingAmount,
-            name:_name,
+            typeId:_typeId,
             appearance:_appearance
         });
         newTokenId = stamps.push(_stamp) - 1;
 
         require(newTokenId == uint256(uint32(newTokenId)));
 
-        emit CreateNewStamp(_stampId, _totalAmount, _remainingAmount,  _name, _year, _setId, _memberOfSetId, _appearance);
+        emit CreateNewStamp(_typeId, _appearance);
     }
     
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
@@ -691,8 +682,7 @@ contract StampTransaction is StampBase {
         require(_buyPrice == price);
         
         _removeTransaction(_tokenId);
-        uint256 x = this.balance;
-        seller.transfer(_buyPrice-100000);
+        seller.transfer(_buyPrice-100);
 
         emit TransactionSuccessful(_tokenId, _buyPrice, msg.sender);
     }
@@ -722,7 +712,7 @@ contract StampTransaction is StampBase {
         view
         returns (uint128 price, address seller) 
     {
-        Trasaction trasaction = tokenIdToTransaction[_tokenId];
+        Trasaction memory trasaction = tokenIdToTransaction[_tokenId];
         price = trasaction.price;
         seller = trasaction.seller;
     }
@@ -739,15 +729,15 @@ contract RepoTransaction is StampBase{
     
     event RepoIngotsSuccessful(uint256 tokenId, uint256 repoCount, address seller);
 
-    function repoIngots(uint256 _tokenId, uint256 _repoCount) public{
+    function repoIngotsTransaction(uint256 _tokenId, uint256 _repoCount) public{
         require(_owns(msg.sender, _tokenId));
         transferFrom(msg.sender, address(this), _tokenId);
-        RepoIngots memory repoIngots = RepoIngots(
+        RepoIngots memory repoIngotsInfo = RepoIngots(
             msg.sender,
             _tokenId,
             _repoCount
         );
-        tokenIdToRepo[_tokenId] = repoIngots;
+        tokenIdToRepo[_tokenId] = repoIngotsInfo;
         emit RepoIngotsSuccessful(_tokenId, _repoCount, msg.sender);
     }
     
@@ -761,69 +751,73 @@ contract RepoTransaction is StampBase{
 }
 
 contract StampMinting is StampTransaction, RepoTransaction {
-    uint256 public constant PROMO_CREATION_LIMIT = 50000;
-    uint256 public constant HISTORY_CREATION_LIMIT = 4500000;
-    uint256 public constant STAMP_STARTING_PRICE = 10 finney;
-    uint256 public constant STAMP_AUCTION_DURATION = 7 days;
+    uint256 public constant STAMP_SET_RELEASE_LIMIT = 3000;
+    uint256 public constant STAMP_TYPE_RELEASE_LIMIT = 30000;
+    uint256 public constant STAMP_CREATION_LIMIT = 500000;
+    
+    uint256 public setReleasedCount;
+    uint256 public stampTypeReleasedCount;
     uint256 public promoCreatedCount;
     uint256 public stampCreatedCount;
 
-    function releaseNewStampSet(uint16 _setId, uint8[] _membersId) external onlyCOO {
+    function releaseNewStampSet(uint16 _setId, uint32[] _typeIds) external onlyCOO{
+        require(setReleasedCount < STAMP_SET_RELEASE_LIMIT);
+        require(!isExistSet[_setId]);
+        require(_setId > 0);
+        require(_typeIds.length > 0);
         StampSet memory _stampSet = StampSet({
             setId:_setId,
-            membersId:_membersId
+            typeIds:_typeIds
         });
-        for(uint16 i = 0; i < _membersId.length; i++) {
-            SetIdOfStamp[_membersId[i]] = _setId;
-        }
-        stampSets.push(_stampSet);
-    }
-
-    function releaseNewPromoStampToAuction(
-        uint32 _stampId,
-        uint16 _year,
-        uint16 _setId,
-        uint8 _memberOfSetId,
-        uint32 _totalAmount,
-        uint32 _remainingAmount,
-        bytes32 _name,
-        address _owner,
-        uint8 _appearance) 
-        external 
-        onlyCOO 
-    {
-        address stampOwner = _owner;
-        if (stampOwner == address(0)) {
-             stampOwner = cooAddress;
-        }
-        require(promoCreatedCount < PROMO_CREATION_LIMIT);
-
-            
-        _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
-        promoCreatedCount++;
         
+        for(uint8 i = 0; i < _typeIds.length; i++) {
+            TypeIdToSetId[_typeIds[i]] = _setId;
+        }
+        
+        stampSets.push(_stampSet);
+        SetIdToStampSet[_setId] = _stampSet;
+        isExistSet[_setId] = true;
+        setReleasedCount++;
+    }
+    
+    function releaseNewStampInfo(uint32 _setId, 
+    uint32 _typeId,  uint32 _totalAmount, 
+    uint16 _year, uint16 _idOfSet, bytes32 _name) external onlyCOO{
+        require(stampTypeReleasedCount < STAMP_TYPE_RELEASE_LIMIT);
+        require(!isExistStampType[_typeId]);
+        StampInfo memory stampInfo = StampInfo({
+            setId:_setId,
+            typeId:_typeId,
+            totalAmount:_totalAmount,
+            remainingAmount:_totalAmount,
+            year:_year,
+            idOfSet:_idOfSet,
+            name:_name
+        });
+        stampInfos.push(stampInfo);
+        TypeIdToStampInfo[_typeId] = stampInfo;
+        isExistStampType[_typeId] = true;
     }
 
     function releaseNewStampToTransaction(
-        uint32 _stampId,
-        uint32 _totalAmount,
-        uint32 _remainingAmount,
-        bytes32 _name,
-        uint16 _year,
-        uint16 _setId,
-        uint8 _memberOfSetId,
+        uint32 _typeId,
         uint8 _appearance
         ) 
         external 
         onlyCOO 
         returns (uint256)
     {
-        require(stampCreatedCount < HISTORY_CREATION_LIMIT);
+        require(isExistStampType[_typeId]);
+        require(stampCreatedCount < STAMP_CREATION_LIMIT);
 
-        uint256 tokenId = _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
+        uint256 tokenId = _createNewStamp(_typeId, _appearance);
         _mint(address(this), tokenId);
         
-        uint256 price = _computeStampPrice(_year, _totalAmount);
+        StampInfo memory stampInfo = TypeIdToStampInfo[_typeId];
+        uint32 totalAmount = stampInfo.totalAmount;
+        uint16 year = stampInfo.year;
+        
+        uint256 price = _computeStampPrice(year, totalAmount);
         Trasaction memory tracsaction = Trasaction(
             uint128(price),
             address(this)
@@ -838,6 +832,31 @@ contract StampMinting is StampTransaction, RepoTransaction {
         uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
         return price;
     }
+    
+        // function releaseNewPromoStampToAuction(
+    //     uint32 _stampId,
+    //     uint16 _year,
+    //     uint16 _setId,
+    //     uint8 _memberOfSetId,
+    //     uint32 _totalAmount,
+    //     uint32 _remainingAmount,
+    //     bytes32 _name,
+    //     address _owner,
+    //     uint8 _appearance) 
+    //     external 
+    //     onlyCOO 
+    // {
+    //     address stampOwner = _owner;
+    //     if (stampOwner == address(0)) {
+    //          stampOwner = cooAddress;
+    //     }
+    //     require(promoCreatedCount < PROMO_CREATION_LIMIT);
+
+            
+    //     _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
+    //     promoCreatedCount++;
+        
+    // }
 }
 
 contract StampCollection is StampMinting {
@@ -855,34 +874,50 @@ contract StampCollection is StampMinting {
         emit ContractUpgrade(_v2Address);
     }
 
-    function stampInfo(uint256 _id)
+    function getStampInfo(uint16 _typeId) public view returns(uint32 setId, 
+    uint32 typeId,  uint32 totalAmount, uint32 remainingAmount, 
+    uint16 year, uint16 idOfSet, bytes32 name){
+        StampInfo memory _stampInfo = TypeIdToStampInfo[_typeId];
+        setId = _stampInfo.setId;
+        typeId = _stampInfo.typeId;
+        totalAmount = _stampInfo.totalAmount;
+        remainingAmount = _stampInfo.remainingAmount;
+        year = _stampInfo.year;
+        idOfSet = _stampInfo.idOfSet;
+        name = _stampInfo.name;
+    }
+    
+    function getStamp(uint256 _typeId)
         external
         view
         returns (
-        uint32 stampId,
-        uint16 year,
-        uint16 setId,
-        uint8  memberOfSetId,
-        uint32 totalAmount,
-        uint32 remainingAmount,
-        bytes32 name,
+        uint32 typeId,
         uint8 appearance
     ) 
     {
-        Stamp storage stamp = stamps[_id];
-        stampId = stamp.stampId;
-        year = stamp.year;
-        setId = stamp.setId;
-        memberOfSetId = stamp.memberOfSetId;
-        totalAmount = stamp.totalAmount;
-        remainingAmount = stamp.remainingAmount;
-        name = stamp.name;
+        Stamp storage stamp = stamps[_typeId];
+        typeId = stamp.typeId;
         appearance = stamp.appearance;
     }
 
+    function getStampSetInfo(uint16 _setId) public view returns(uint16 setId, uint32[] typeIds){
+        StampSet memory stampSet = SetIdToStampSet[_setId];
+        setId = stampSet.setId;
+        typeIds = stampSet.typeIds;
+    }
+    
+    function existStampSet(uint16 _setId) public view returns (bool) {
+        StampSet memory stampSet = SetIdToStampSet[_setId];
+        return stampSet.setId != 0;
+    }
+    
+    function existStampInfo(uint16 _typeId) public view returns (bool) {
+        StampInfo memory stampInfo = TypeIdToStampInfo[_typeId];
+        return stampInfo.setId != 0 && stampInfo.typeId != 0;
+    }
+    
     function unpause() public onlyCEO whenPaused {
         require(newContractAddress == address(0));
-
         super.unpause();
     }
 
