@@ -1,6 +1,7 @@
 <template>
   <div class="album-item" ref="album" :class="lock?'lock':null" @click="click">
-    <img class="album-cover-bg" :src="coverUrl" alt="">
+    <img class="album-cover-bg" :class="isiOS?null:'blur'" :src="coverUrl" alt="">
+    <div v-if="isiOS" class="back-drop"></div>
     <div class="img-wrap">
       <StampWrap :imgSrc="coverUrl" :type="'thumb'" :padding="padding"></StampWrap>
     </div>
@@ -23,11 +24,12 @@ export default {
   },
   data () {
     return {
-      padding: 22
+      padding: 22,
+      isiOS: false
     }
   },
   props: {
-    year: String,
+    year: Number,
     name: String,
     completeCollected: Boolean,
     lock: Boolean,
@@ -38,6 +40,8 @@ export default {
     if (this.type === 'trade') {
       this.padding = 14
     }
+    let ua = navigator.userAgent.toLowerCase()
+    this.isiOS = ua.indexOf('iphone') >= 0
   },
   methods: {
     click () {
@@ -79,7 +83,7 @@ export default {
     color: #aaa;
     border-radius: 4px;
     overflow: hidden;
-    box-shadow: 0 0 1px 2px #0000001e;
+    box-shadow: 0 0 1px 2px rgba(0, 0, 0, 0.12);
     transform: scale3d(1,1,1);
     transition: all 0.1s ease-in-out;
     &.lock{
@@ -87,7 +91,10 @@ export default {
         filter: grayscale(100%);
       }
       .album-cover-bg{
-        filter: blur(15px)grayscale(100%);
+        filter: grayscale(100%);
+      }
+      .album-cover-bg.blur{
+        filter: blur(15px) grayscale(100%);
       }
       &:before{
         content: "";
@@ -96,7 +103,7 @@ export default {
         height: 100%;
         top: 0;
         left: 0;
-        background-color: #00000099;
+        background-color: rgba(0, 0, 0, 0.6);
         z-index: 100;
       }
       &:after{
@@ -132,10 +139,21 @@ export default {
       width: 160%;
       height: 160%;
       object-fit: cover;
-      filter: blur(15px)brightness(70%);
       transform: scale3d(1,1,1);
       opacity: 1;
       pointer-events: none;
+      &.blur{
+        filter: blur(15px) brightness(70%);
+      }
+    }
+    .back-drop{
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: saturate(180%) blur(20px);
     }
     .album-name{
       position: absolute;

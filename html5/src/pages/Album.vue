@@ -15,11 +15,11 @@
           <template v-for="(album, index) in currentAlbum" v-if="!(currentAlbumTab != 'year' && album.lock)">
             <div class="year-folder" v-if="album.yearStart && currentAlbumTab=='year'" :key="'time_'+index">{{album.year}}</div>
             <div class="album-wrap" :key="'album_'+index">
-              <AlbumWrap :name="album.name"
+              <AlbumWrap :name="album.set_name"
                          :year="album.year"
+                         :coverUrl="album.image"
                          :lock="album.lock"
-                         :coverUrl="album.src"
-                         @click="checkAlbum"></AlbumWrap>
+                         @click="checkAlbum(album.set, album.lock)"></AlbumWrap>
             </div>
           </template>
         </div>
@@ -27,20 +27,27 @@
     </div>
     <div class="serial-page" v-if="pageLevel == 'serial'">
       <div class="back" @click="backToAlbum"></div>
-      <div class="title">飞行系列</div>
+      <div class="action-btn" v-if="currentAlbumTab=='bought'" @click="openSellModal">出售全套</div>
+      <div class="title">{{setName}}</div>
       <div class="serial-page--wrapper">
         <div class="serial-page--shelf">
           <div class="stamp-item" v-for="(stamp, index) in currentSerial" :key="'stamp_' + index">
             <div v-if="stamp.multiple" class="multiple-wrap" :key="'stamp_img_' + index">
-              <div class="img-wrap" v-for="(stp, index) in stamp.list" :key="'stp_img_' + index" @click="multipleClick">
-                <StampWrap :imgSrc="stp.src"
+              <div class="img-wrap" v-for="(stp, index) in stamp.list" :key="'stp_img_' + index" @click="multipleClick($event, stamp.list)">
+                <StampWrap :imgSrc="stp.image"
                            :type="'list'"
                            :frame="true"
-                           :level="stp.level"></StampWrap>
+                           :level="stp.score"
+                           :stamp="stamp"></StampWrap>
               </div>
             </div>
-            <div v-else class="img-wrap" @click="openSingle">
-              <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true" :key="'stamp_img_' + index" :level="stamp.level"></StampWrap>
+            <div v-else class="img-wrap" @click="openSingle(stamp)">
+              <StampWrap :imgSrc="stamp.image"
+                         :type="'list'"
+                         :frame="true"
+                         :key="'stamp_img_' + index"
+                         :level="stamp.score"
+                         :stamp="stamp"></StampWrap>
             </div>
             <div v-if="stamp.expire" class="expire">{{stamp.expire}}</div>
           </div>
@@ -50,8 +57,12 @@
     <div class="multiple-page" v-if="multiple && !single" @click="closeMultiple">
       <div class="stamp-transformer" ref="mItem" v-for="(stamp, index) in currentMultiple" :key="'multiple_' + index">
         <div class="stamp-item">
-          <div class="img-wrap" @click="openSingle">
-            <StampWrap :imgSrc="stamp.src" :type="'list'" :frame="true" :level="stamp.level"></StampWrap>
+          <div class="img-wrap" @click="openSingle(stamp)">
+            <StampWrap :imgSrc="stamp.image"
+                       :type="'list'"
+                       :frame="true"
+                       :level="stamp.score"
+                       :stamp="stamp"></StampWrap>
           </div>
           <div v-if="stamp.expire" class="expire">{{stamp.expire}}</div>
         </div>
@@ -60,23 +71,92 @@
     <div class="single-page" v-if="single" @click="closeSingle">
       <div class="single-wrap">
         <div class="img-warp">
-          <StampWrap :imgSrc="currentStamp.src" :level="currentStamp.level" :type="'large'" :frame="true" :padding="60" :v-padding="30"></StampWrap>
+          <StampWrap :imgSrc="currentStamp.image"
+                     :level="currentStamp.score"
+                     :type="'large'"
+                     :frame="true"
+                     :padding="60"
+                     :v-padding="30"
+                     :stamp="currentStamp"></StampWrap>
         </div>
         <div class="single-detail">
-          <div class="stamp-title">{{currentStamp.name}}, {{currentStamp.date}}</div>
+          <div class="stamp-title">{{currentStamp.name!='-'?currentStamp.name:currentStamp.set_name}}, {{currentStamp.year}}</div>
           <div class="stamp-counts">
-            <span class="level">品相：{{currentStamp.level}}</span>
+            <span class="level" v-if="currentAlbumTab!='year'">品相：{{currentStamp.score}}</span>
             <span class="type">{{currentStamp.type}}</span>
-            <span class="num">剩余量：{{currentStamp.remain}}/{{currentStamp.amount}}</span>
+            <span class="num">剩余量：{{currentStamp.remain}}/{{currentStamp.volume}}</span>
           </div>
-          <div class="stamp-desc">{{currentStamp.desc}}</div>
-          <div class="stamp-expire" v-if="currentStamp.expire">
-            <span class="expire-btn buy" @click="buyStamp">购买</span>
-            <span class="expire-btn extend" @click="extendExpire">延期</span>
-            <span class="expire-text">{{currentStamp.expire}}</span>
-          </div>
+          <div class="stamp-desc">{{currentStamp.expain}}</div>
+          <template v-if="currentAlbumTab!='year'">
+            <div class="stamp-action" v-if="currentStamp.boughtType">
+              <span class="action-btn green" @click="openSellModal">交易</span>
+              <span class="action-btn white wide" @click="openRecycleModal">出售给平台</span>
+              <span class="action-text green" v-if="currentStamp.boughtType == 'collect'">已获得（收藏满一个月）</span>
+              <span class="action-text green" v-if="currentStamp.boughtType == 'buy'">已于{{currentStamp.buyTime}}购买</span>
+            </div>
+            <div class="stamp-action" v-else-if="currentStamp.trading">
+              <span class="action-text">交易中</span>
+            </div>
+            <div class="stamp-action" v-else>
+              <span class="action-btn green" @click="openBuyModal">购买</span>
+              <!--<span class="action-btn white" @click="extendExpire">延期</span>-->
+              <span class="action-text">{{currentStamp.expire}}</span>
+            </div>
+          </template>
         </div>
         <div class="single-close" @click="closeSingle"></div>
+      </div>
+    </div>
+    <div class="modal unlock-modal" v-if="unlockModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>将花费铜钱</p>
+          <p><span class="coins-icon"></span> x 1000</p>
+          <p>解锁该邮册</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeUnlockModal">取消</div>
+          <div class="theme-btn action-btn green" @click="unlockAlbum">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal buy-modal" v-if="buyModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>将花费以太币</p>
+          <p><span class="eth-icon"></span> x {{Math.ceil(currentStamp.floor*1000)/1000}}</p>
+          <p>购买该邮票</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closebuyModal">取消</div>
+          <div class="theme-btn action-btn green" @click="buyStamp">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal recycle-modal" v-if="recycleModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>出售给平台获得元宝</p>
+          <p><span class="ingot-icon"></span> x {{Math.ceil(currentStamp.floor)}}</p>
+          <p class="tip">出售给平台只能获得元宝</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeRecycleModal">取消</div>
+          <div class="theme-btn action-btn green" @click="recycleStamp">确定</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal recycle-modal" v-if="sellModal">
+      <div class="modal-center">
+        <div class="modal-text">
+          <p>将以下列价格出售该邮票</p>
+          <p><span class="eth-icon"></span> x <input type="text" :value="sellPrice" @change="priceChange"></p>
+          <p class="tip">平台将收取售价1%作为交易手续费</p>
+        </div>
+        <div class="btn-wrap">
+          <div class="theme-btn action-btn white" @click="closeSellModal">取消</div>
+          <div class="theme-btn action-btn green" @click="sellStamp">确定</div>
+        </div>
       </div>
     </div>
   </div>
@@ -99,249 +179,69 @@ export default {
       sort: 'recent',
       multiple: false,
       single: false,
-      currentStamp: {
-        src: '/static/img/demo7.jpg',
-        name: '飞天一号',
-        year: '2018',
-        desc: '《中国恐龙》特种邮票则是中国邮政首次发行以恐龙为主题的邮票。该套邮票以在我国境内发掘的恐龙化石复原图为主要内容，整体画面富有动感，兼具科学性和艺术性。',
-        level: 89,
-        total: 40000,
-        rest: 23083,
-        type: '特种邮票',
-        expire: '2018.5.31 到期'
-      },
-      currentMultiple: [
-        {
-          src: '/static/img/demo1.jpg',
-          name: 'falcon',
-          year: '2017',
-          level: 89,
-          expire: '2018.5.31 到期'
-        },
-        {
-          src: '/static/img/demo1.jpg',
-          name: 'falcon',
-          level: 89,
-          year: '2017'
-        },
-        {
-          src: '/static/img/demo1.jpg',
-          name: 'falcon',
-          level: 89,
-          year: '2017'
-        }
-      ],
-      currentSerial: [{
-        src: '/static/img/demo7.jpg',
-        name: '飞天一号',
-        level: 98,
-        year: '2018'
-      },
-      {
-        src: '/static/img/demo4.jpg',
-        name: '飞天二号珍藏版',
-        level: 89,
-        year: '2018',
-        expire: '2018.5.31 到期'
-      },
-      {
-        multiple: true,
-        list: [
-          {
-            src: '/static/img/demo1.jpg',
-            name: 'falcon',
-            level: 89,
-            year: '2017',
-            expire: '2018.5.31 到期'
-          },
-          {
-            src: '/static/img/demo1.jpg',
-            name: 'falcon',
-            level: 89,
-            year: '2017'
-          },
-          {
-            src: '/static/img/demo1.jpg',
-            name: 'falcon',
-            level: 89,
-            year: '2017'
-          }
-        ]
-      },
-      {
-        src: '/static/img/1.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017',
-        expire: '2018.5.31 到期'
-      },
-      {
-        src: '/static/img/3.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017'
-      },
-      {
-        src: '/static/img/5.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017'
-      },
-      {
-        src: '/static/img/1.png',
-        name: 'falcon',
-        level: 72,
-        year: '2017',
-        expire: '2018.5.31 到期'
-      },
-      {
-        src: '/static/img/3.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017'
-      },
-      {
-        src: '/static/img/5.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017'
-      },
-      {
-        src: '/static/img/1.png',
-        name: 'falcon',
-        level: 80,
-        year: '2017',
-        expire: '2018.5.31 到期'
-      },
-      {
-        src: '/static/img/3.png',
-        name: 'falcon',
-        level: 62,
-        year: '2017'
-      },
-      {
-        src: '/static/img/5.png',
-        name: 'falcon',
-        level: 89,
-        year: '2017'
-      },
-      {
-        src: '/static/img/6.png',
-        name: 'falcon',
-        level: 89,
-        year: '2016',
-        expire: '2018.5.31 到期'
-      },
-      {
-        src: '/static/img/2.png',
-        name: 'falcon',
-        level: 89,
-        year: '2018'
-      },
-      {
-        src: '/static/img/7.png',
-        name: 'falcon',
-        level: 89,
-        year: '2018'
-      },
-      {
-        src: '/static/img/4.png',
-        name: 'falcon',
-        level: 89,
-        year: '2018'
-      }],
-      currentAlbum: [{
-        src: '/static/img/demo1.jpg',
-        name: '邮册名称',
-        year: '2018',
-        yearStart: '2018'
-      },
-      {
-        src: '/static/img/demo2.jpg',
-        name: '香港回归祖国二十周年',
-        year: '2017',
-        yearStart: '2017',
-        completeCollected: true
-      },
-      {
-        src: '/static/img/demo3.jpg',
-        name: 'stamp2',
-        year: '2017'
-      },
-      {
-        src: '/static/img/demo4.jpg',
-        name: 'stamp2lock',
-        year: '2017',
-        lock: true
-      },
-      {
-        src: '/static/img/demo5.jpg',
-        name: 'stamp2',
-        year: '2015',
-        yearStart: '2015'
-      },
-      {
-        src: '/static/img/demo7.jpg',
-        name: 'stamp2',
-        year: '2015'
-      },
-      {
-        src: '/static/img/demo1.jpg',
-        name: 'stamp2',
-        year: '2015'
-      },
-      {
-        src: '/static/img/demo4.jpg',
-        name: 'stamp2',
-        year: '2014',
-        yearStart: '2014',
-        lock: true
-      },
-      {
-        src: '/static/img/demo5.jpg',
-        name: 'stamp2',
-        year: '2014',
-        yearStart: '2015'
-      },
-      {
-        src: '/static/img/demo7.jpg',
-        name: 'stamp2',
-        year: '2014'
-      },
-      {
-        src: '/static/img/demo5.jpg',
-        name: 'stamp2',
-        year: '2014',
-        yearStart: '2015'
-      },
-      {
-        src: '/static/img/demo7.jpg',
-        name: 'stamp2',
-        year: '2014'
-      },
-      {
-        src: '/static/img/demo5.jpg',
-        name: 'stamp2',
-        year: '2014',
-        yearStart: '2015'
-      },
-      {
-        src: '/static/img/demo7.jpg',
-        name: 'stamp2',
-        year: '2014'
-      }],
-      boughtAlbums: [],
-      yearAlbums: []
+      set: null,
+      currentStamp: {},
+      currentMultiple: [],
+      unlockModal: false,
+      unlockId: 0,
+      buyModal: false,
+      recycleModal: false,
+      sellIds: [],
+      sellPrice: 0,
+      sellDefaultPrice: 100,
+      sellModal: false
     }
   },
   mounted () {
+  },
+  computed: {
+    currentAlbum () {
+      if (this.currentAlbumTab === 'year') {
+        return this.$store.state.Album.yearBook
+      } else if (this.currentAlbumTab === 'bought') {
+        return this.$store.state.Album.boughtBook
+      } else if (this.currentAlbumTab === 'collected') {
+        return this.$store.state.Album.collectBook
+      } else {
+        return []
+      }
+    },
+    currentSerial () {
+      if (this.set == null) return []
+      let serialArray = []
+      let allStamp
+      if (this.currentAlbumTab === 'year') {
+        allStamp = this.$store.state.Album.allStamp
+      } else if (this.currentAlbumTab === 'collected') {
+        allStamp = this.$store.state.Album.collectList
+      } else {
+        allStamp = this.$store.state.Album.finalBoughtList
+      }
+      for (let i in allStamp) {
+        if (allStamp[i].set === this.set) {
+          serialArray.push(allStamp[i])
+        }
+      }
+      return serialArray
+    }
   },
   methods: {
     switchTab (tab) {
       this.currentAlbumTab = tab
     },
-    checkAlbum (e) {
-      this.pageLevel = 'serial'
+    checkAlbum (set, lock) {
+      if (lock) {
+        this.unlockModal = true
+        for (let i in this.$store.state.Album.yearBook) {
+          if (this.$store.state.Album.yearBook[i].set === set) {
+            this.unlockId = this.$store.state.Album.yearBook[i].id
+          }
+        }
+      } else {
+        this.set = set
+        this.setName = this.$store.state.Album.yearBook[this.set].set_name
+        this.pageLevel = 'serial'
+      }
     },
     backToAlbum (e) {
       this.pageLevel = 'album'
@@ -349,7 +249,8 @@ export default {
     swithSort (sort) {
       this.sort = sort
     },
-    multipleClick (e) {
+    multipleClick (e, list) {
+      this.currentMultiple = list
       let that = this
       this.openMultiple(e)
       let pageX = e.pageX
@@ -363,15 +264,15 @@ export default {
           let offsetLeft = elems[i].getBoundingClientRect().x
           let ox = (pageX - offsetWidth / 2) - offsetLeft
           let oy = (pageY - offsetHeight / 2) - offsetTop
-          elems[i].style.transform = 'translate(' + ox + 'px,' + oy + 'px)scale(0.7)'
-          elems[i].style.webkitTransform = 'translate(' + ox + 'px,' + oy + 'px)scale(0.7)'
+          elems[i].style.transform = 'translate3d(' + ox + 'px,' + oy + 'px, 0)scale(0.7)'
+          elems[i].style.webkitTransform = 'translate3d(' + ox + 'px,' + oy + 'px, 0)scale(0.7)'
         }
         setTimeout(function () {
           for (let i in elems) {
             elems[i].style.transition = 'all 0.3s ease-out'
             elems[i].style.webkitTransition = 'all 0.3s ease-out'
-            elems[i].style.transform = 'translate(0,0)'
-            elems[i].style.webkitTransform = 'translate(0,0)'
+            elems[i].style.transform = 'translate3d(0,0,0)'
+            elems[i].style.webkitTransform = 'translate3d(0,0,0)'
             elems[i].style.opacity = '1'
           }
         }, 0)
@@ -380,9 +281,9 @@ export default {
     openMultiple (e) {
       this.multiple = true
     },
-    openSingle (e) {
+    openSingle (stamp) {
+      this.currentStamp = stamp
       this.single = true
-      e.stopPropagation()
     },
     closeMultiple (e) {
       this.multiple = false
@@ -401,11 +302,87 @@ export default {
         }
       }, 200)
     },
-    buyStamp (e) {
+    closeUnlockModal () {
+      this.unlockModal = false
+    },
+    unlockAlbum () {
+      // 检测铜钱数量
+      this.$store.dispatch('unlockBook', this.unlockId)
+      this.unlockModal = false
+      this.actionRefresh()
+    },
+    actionRefresh () {
+      let tab = this.currentAlbumTab
+      let that = this
+      this.currentAlbumTab = ''
+      setTimeout(function () {
+        that.currentAlbumTab = tab
+      }, 200)
+    },
+    openBuyModal (e) {
+      this.buyModal = true
       e.stopPropagation()
     },
-    extendExpire (e) {
+    closebuyModal () {
+      this.buyModal = false
+    },
+    buyStamp (e) {
+      this.buyModal = false
+      this.single = false
+      this.$store.dispatch('albumBuyStamp', this.currentStamp)
       e.stopPropagation()
+    },
+    openRecycleModal (e) {
+      this.recycleModal = true
+      e.stopPropagation()
+    },
+    closeRecycleModal () {
+      this.recycleModal = false
+    },
+    recycleStamp (e) {
+      this.recycleModal = false
+      this.single = false
+      this.$store.dispatch('albumRecycleStamp', this.currentStamp)
+      e.stopPropagation()
+    },
+    openSellModal (e) {
+      this.sellPrice = this.sellDefaultPrice
+      this.sellModal = true
+      let minPrice = 0
+      if (this.single) {
+        this.sellIds = [this.currentStamp.id]
+        minPrice += this.currentStamp.floor
+      } else {
+        for (let i in this.currentSerial) {
+          let item = this.currentSerial[i]
+          if (item.multiple) {
+            for (let j in item.list) {
+              this.sellIds.push(item.list[j].id)
+              minPrice += item.list[j].floor
+            }
+          } else {
+            this.sellIds.push(item.id)
+            minPrice += item.floor
+          }
+        }
+      }
+      this.sellPrice = Math.ceil(minPrice)
+      e.stopPropagation()
+    },
+    closeSellModal () {
+      this.sellModal = false
+    },
+    priceChange (e) {
+      this.sellPrice = parseInt(e.target.value)
+    },
+    sellStamp () {
+      this.$store.dispatch('createDeal', {
+        stampIds: this.sellIds,
+        price: this.sellPrice
+      })
+      this.actionRefresh()
+      this.sellModal = false
+      this.single = false
     }
   }
 }
@@ -460,7 +437,7 @@ export default {
         height: 1px;
         bottom: -1px;
         left: 0;
-        box-shadow: 0 0 10px 5px #0000001e;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.12);
       }
       &.active{
         background-color: @themeColor;
@@ -484,7 +461,7 @@ export default {
     border-radius: 8px 8px 0 0;
     background-color: #fff;
     overflow-y: scroll;
-    box-shadow: 0 0 10px 3px #0000002e;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.18);
     -webkit-overflow-scrolling: touch;
     .sort{
       position: relative;
@@ -539,6 +516,25 @@ export default {
     background-size: contain;
     background-repeat: no-repeat;
   }
+  .action-btn{
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    width: 60px;
+    height: 24px;
+    border-radius: 12px;
+    color: white;
+    border: 1px solid @themeColor;
+    background-color: @themeColor;
+    z-index: 10;
+    &:active{
+      background-color: darken(@themeColor, 6%);
+    }
+  }
   .title{
     position: absolute;
     width: 100%;
@@ -556,7 +552,7 @@ export default {
     border-radius: 8px 8px 0 0;
     background-color: #fff;
     overflow: auto;
-    box-shadow: 0 0 10px 3px #0000003e;
+    box-shadow: 0 0 10px 3px rgba(0, 0, 0, 0.24);
     -webkit-overflow-scrolling: touch;
     .serial-page--shelf{
       position: relative;
@@ -637,7 +633,7 @@ export default {
   top: 0;
   left: 0;
   z-index: 2000;
-  background-color: #000000cc;
+  background-color: rgba(0, 0, 0, 0.8);
   .single-wrap{
     position: absolute;
     top: 8%;
@@ -646,7 +642,7 @@ export default {
     height: 80%;
     border-radius: 6px;
     background-color: #fff;
-    box-shadow: 0 0 10px 5px #0000008e;
+    box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.56);
   }
   .img-warp{
     position: absolute;
@@ -687,11 +683,12 @@ export default {
     .stamp-desc{
       width: 100%;
       height: 90px;
+      margin-top: 10px;
       padding: 10px 0;
       font-size: 12px;
       text-align: left;
     }
-    .stamp-expire{
+    .stamp-action{
       color: #666;
       width: 100%;
       font-size: 12px;
@@ -699,7 +696,7 @@ export default {
         float: right;
         line-height: 24px;
       }
-      .expire-btn{
+      .action-btn{
         display: flex;
         justify-content: center;
         align-items: center;
@@ -708,18 +705,26 @@ export default {
         border-radius: 12px;
         border: 1px solid @themeColor;
         margin-left: 6px;
-        &.extend{
+        &.wide{
+          width: 80px;
+        }
+        &.white{
           color: @themeColor;
           &:active{
             background-color: darken(#fff, 6%);
           }
         }
-        &.buy{
+        &.green{
           background-color: @themeColor;
           &:active{
             background-color: darken(@themeColor, 6%);
           }
           color: #fff;
+        }
+      }
+      .action-text{
+        &.green{
+          color: @themeColor;
         }
       }
     }
@@ -781,6 +786,82 @@ export default {
       font-size: 12px;
       color: #aaa;
       transform: scale(0.8);
+    }
+  }
+}
+.modal{
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: #000000aa;
+  z-index: 3000;
+  .modal-center{
+    position: relative;
+    top: -30px;
+    width: 240px;
+    height: 180px;
+    background-color: #fff;
+    border-radius: 4px;
+    .modal-text{
+      position: relative;
+      top: 10px;
+      p{
+        font-size: 14px;
+        line-height: 14px;
+        vertical-align: center;
+        &.tip{
+          font-size: 12px;
+        }
+        input{
+          width: 40px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          padding: 4px;
+        }
+      }
+      .coins-icon{
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background-image: url(/static/ui/coin.png);
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
+      .eth-icon{
+        display: inline-block;
+        width: 24px;
+        height: 24px;
+        background-image: url(/static/ui/ether.png);
+        background-size: contain;
+        background-repeat: no-repeat;
+      }
+      .ingot-icon{
+        display: inline-block;
+        width: 30px;
+        height: 18px;
+        background-image: url(/static/ui/ignotMini.png);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+    }
+    .btn-wrap{
+      position: absolute;
+      width: 100%;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      .action-btn{
+        width: 90px;
+        height: 30px;
+        margin: 4px;
+        display: flex;
+        border-radius: 15px;
+      }
     }
   }
 }

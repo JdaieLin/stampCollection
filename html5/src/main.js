@@ -27,4 +27,9 @@ store.dispatch('login', {
   login_password: 'aabbcc'
 })
 
+// store.dispatch('login', {
+//   login_id: 'balabala2',
+//   login_password: 'aabbcc'
+// })
+
 document.body.addEventListener('touchstart', function () { })

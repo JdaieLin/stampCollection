@@ -18,12 +18,19 @@ const state = {
 
 const mutations = {
   INCREMENT_COINS (state, payload) {
-    state.coins += payload
+    if (state.coins + payload > 999999) {
+      state.coins = 999999
+    } else {
+      state.coins += payload
+    }
   },
   REDUCE_COINS (state, payload) {
     state.coins -= payload
   },
   UPDATE_COINS (state, coins) {
+    if (coins > 999999) {
+      coins = 999999
+    }
     state.coins = coins
   },
   INCREMENT_INGOTS (state, ingots) {

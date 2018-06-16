@@ -1,5 +1,9 @@
 <template>
   <div class="mid-center">
+    <div class="ingot-count">
+      <span class="ingot-icon"></span>
+      {{$store.state.Money.ingots}}
+    </div>
     <div v-if="shouldShowBox && !openingBox" class="boxes">
       <div class="box-item" @click="openBox"></div>
       <div class="box-item" @click="openBox"></div>
@@ -151,7 +155,7 @@ export default {
       justify-content: center;
       width: 100%;
       height: 100%;
-      background-color: #000000aa;
+      background-color: rgba(0, 0, 0, 0.67);
       animation: show 0.3s ease-in-out;
       .digging-modal{
         position: relative;
@@ -164,7 +168,7 @@ export default {
         background-color: #fff;
         margin-top: -80px;
         border-radius: 8px;
-        box-shadow: 0 0 10px 5px #0000005e;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.37);
         &:before{
           content: '';
           display: block;
@@ -196,7 +200,7 @@ export default {
       justify-content: center;
       width: 100%;
       height: 100%;
-      background-color: #000000aa;
+      background-color: rgba(0, 0, 0, 0.67);
       .opening-modal{
         position: relative;
         display: flex;
@@ -208,7 +212,7 @@ export default {
         background-color: #fff;
         margin-top: -80px;
         border-radius: 8px;
-        box-shadow: 0 0 10px 5px #0000005e;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.37);
         &:before{
           content: '';
           display: block;
@@ -253,6 +257,33 @@ export default {
             background-color: darken(@themeColor, 6%);
           }
         }
+      }
+    }
+    .ingot-count{
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      top: 10px;
+      left: 50%;
+      width: 160px;
+      height: 30px;
+      background-color: #fff;
+      z-index: 100;
+      border-radius: 15px;
+      margin-left: -80px;
+      color: @themeColor;
+      font-weight: bold;
+      box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.37);
+      .ingot-icon{
+        position: relative;
+        display: block;
+        width: 40px;
+        height: 18px;
+        background-image: url(/static/ui/ignotMini.png);
+        background-position: center;
+        background-size: contain;
+        background-repeat: no-repeat;
       }
     }
   }

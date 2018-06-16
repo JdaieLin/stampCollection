@@ -53,7 +53,7 @@ export default {
   left: 0;
   bottom: 0;
   background-color: #fff;
-  box-shadow: 0 0 20px 5px #0000000d;
+  box-shadow: 0 0 20px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;

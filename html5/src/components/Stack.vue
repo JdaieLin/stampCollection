@@ -14,13 +14,19 @@
         @webkit-transition-end="onTransitionEnd(index)"
         @transitionend="onTransitionEnd(index)">
       <div class="img-wrap">
-        <StampWrap :imgSrc="item.image" :level="item.score" :frame="true" :type="'large'" :padding="60" :v-padding="30"></StampWrap>
+        <StampWrap :imgSrc="item.image"
+                   :level="item.score"
+                   :frame="true"
+                   :type="'large'"
+                   :padding="60"
+                   :v-padding="40"
+                   :stamp="item"></StampWrap>
         <div class="tag"></div>
         <div class="hq"></div>
       </div>
       <div class="stamp-info">
-        <div class="title">{{item.name}}, <span class="age">{{item.date}}</span></div>
-        <div class="detail"><span class="grade">品相等级: {{item.score}}</span><span class="count">剩余量 {{item.remain}}/{{item.amount}}</span></div>
+        <div class="title"><span class="name">{{item.name != '-' ? item.name : item.set_name}},</span><span class="age">{{item.year}}</span></div>
+        <div class="detail"><span class="grade">品相等级: {{item.score}}</span><span class="count">剩余量 {{item.remain}}/{{item.volume}}</span></div>
       </div>
     </li>
   </ul>
@@ -322,7 +328,7 @@ export default {
     pointer-events: auto;
     background-color: #ddd;
     border: 1px solid #eaeaea;
-    box-shadow: 0 0 3px 3px #0000001e;
+    box-shadow: 0 0 3px 3px rgba(0, 0, 0, 0.12);
     .img-wrap{
       display: flex;
       align-items: center;
@@ -331,6 +337,7 @@ export default {
       width: 100%;
       height: calc(100% - 65px);
       padding: 20px;
+      transform: scale3d(1,1,1);
     }
     .stamp-info{
       position: absolute;

@@ -5,6 +5,7 @@ const slideLength = 15
 
 const state = {
   stamps: [],
+  randomCoin: 0,
   currentStamp: null,
   currentLoopList: [],
   currentLoopIndex: 0,
@@ -84,11 +85,15 @@ const mutations = {
       // save slide result
       state.slideResultList.push({
         stamp_id: state.currentStamp.id,
-        action: state.currentStamp.action
+        action: state.currentStamp.action,
+        coin: state.randomCoin
       })
     }
     state.currentLoopIndex = index
     state.currentStamp = state.currentLoopList[state.currentLoopIndex]
+  },
+  GET_RANDOM_COIN (state) {
+    state.randomCoin = 1 + Math.floor(Math.random() * 10)
   },
   SET_BAD (state) {
     state.currentStamp.action = 0
@@ -116,6 +121,13 @@ const mutations = {
       state.canReverseTime--
       localStorage.setItem('reverseCountDate_' + new Date().toLocaleDateString(), state.canReverseTime)
     }
+  },
+  SLIDE_AWAY (state) {
+    let awayIndex = state.currentLoopIndex ? (state.currentLoopIndex - 1) : slideLength - 1
+    let exchangeIndex = (awayIndex - 4 < 0) ? slideLength + awayIndex - 5 : awayIndex - 4
+    let temp = state.currentLoopList[awayIndex]
+    state.currentLoopList[awayIndex] = state.currentLoopList[exchangeIndex]
+    state.currentLoopList[exchangeIndex] = temp
   },
   CLEAR_SLIDE_RESULT (state) {
     state.slideResultList = []
@@ -168,9 +180,40 @@ const actions = {
   reverseSlide ({commit}) {
     commit('REVERSE_SLIDE')
   },
+  slideRandomCoin ({ commit }) {
+    commit('GET_RANDOM_COIN')
+  },
+  slideCollect ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/collect', data).then((response) => {
+      if (response.data.success) {
+        commit('SLIDE_AWAY')
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
+  slideBuy ({ commit, rootState, dispatch }, stamp) {
+    let data = {
+      user_id: rootState.User.user_id,
+      stamp_id: stamp.id
+    }
+    Vue.http.post(apiHost + '/api/stamp/buy', data).then((response) => {
+      if (response.data.success) {
+        commit('SLIDE_AWAY')
+        dispatch('getAlbum')
+        dispatch('getTrade')
+      }
+    })
+  },
   syncSlideReult ({commit, rootState}) {
     let data = {
       user_id: rootState.User.user_id,
+      coins: state.slideResultList.map(i => i.coin).reduce((a, b) => a + b),
+      times: state.slideResultList.length,
       stamps: state.slideResultList
     }
     commit('CLEAR_SLIDE_RESULT')

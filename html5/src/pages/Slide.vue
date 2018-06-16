@@ -36,12 +36,12 @@
         <div class="favor-icon"></div>
         <div class="col">
           <div class="text">花费元宝</div>
-          <div class="text"><span class="icon ingot-icon"></span> x 20</div>
+          <div class="text"><span class="icon ingot-icon"></span> x {{Math.ceil($store.state.Slide.currentStamp.floor)}}</div>
           <div class="action-btn theme-btn white" @click="actionCollect">收藏五天</div>
         </div>
         <div class="col">
           <div class="text">花费以太币</div>
-          <div class="text"><span class="icon eth-icon"></span> x 10</div>
+          <div class="text"><span class="icon eth-icon"></span> x {{Math.ceil($store.state.Slide.currentStamp.floor*100)/100}}</div>
           <div class="action-btn theme-btn green" @click="actionBuy">直接购买</div>
         </div>
         <div class="close-btn" @click="closeAskModal"></div>
@@ -133,18 +133,24 @@ export default {
       e.stopPropagation()
     },
     actionCollect () {
-      console.log('collect', this.$store.state.Slide.currentStamp)
+      this.$store.dispatch('slideCollect', this.$store.state.Slide.currentStamp)
+      this.$refs.stack.$emit('next')
+      this.askModal = false
     },
     actionBuy () {
-      console.log('buy', this.$store.state.Slide.currentStamp)
+      this.$store.dispatch('slideBuy', this.$store.state.Slide.currentStamp)
+      this.$refs.stack.$emit('next')
+      this.askModal = false
     },
     closeAskModal () {
       this.askModal = false
     },
     slideChange (index) {
       this.currentPage = index
+      this.$store.dispatch('slideRandomCoin')
+      let coins = this.$store.state.Slide.randomCoin
       this.$store.dispatch('changeLoopIndex', index)
-      this.$store.dispatch('coinIncrease', 10)
+      this.$store.dispatch('coinIncrease', coins)
       this.syncCount = 4
       this.isFavor = false
     },
@@ -295,7 +301,7 @@ export default {
     justify-content: center;
     width: 100%;
     height: 100%;
-    background-color: #000000aa;
+    background-color: rgba(0, 0, 0, 0.67);
     z-index: 1000;
     .modal-center{
       position: relative;
@@ -303,7 +309,7 @@ export default {
       height: 200px;
       background-color: #fff;
       border-radius: 8px;
-      box-shadow: 0 0 10px 5px #0000005e;
+      box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.37);
       display: flex;
       flex-wrap: wrap;
       padding: 20px;
