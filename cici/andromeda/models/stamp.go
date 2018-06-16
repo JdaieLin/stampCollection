@@ -1,6 +1,7 @@
 package models
 
 import (
+	"cici/andromeda/constant"
 	"cici/andromeda/libs/util"
 	"math/rand"
 	"time"
@@ -9,20 +10,17 @@ import (
 )
 
 type Stamp struct {
-	ID         int64   `bson:"_id" json:"id"`                // 系统邮票ID
-	Name       string  `bson:"Name" json:"name"`             //邮票名称
-	Expain     string  `bson:"Expain" json:"expain"`         //邮票介绍
-	Rarity     int     `bson:"Rarity" json:"rarity"`         // 稀有度 0.L 1.N 2.R 3.SR 4.SSR
-	Score      float64 `bson:"Score" json:"score"`           // 评分
-	Brightness int     `bson:"Brightness" json:"brightness"` //辉度
-	Crack      int     `bson:"Crack" json:"crack"`           //破损
-	Mark       int     `bson:"mark" json:"mark"`             //邮戳
-	Stain      int     `bson:"Stain" json:"stain"`           //污点
-	SerialID   int64   `bson:"SerialID" json:"serial_id"`    //套票ID
-	SerialNum  int64   `bson:"SerialNum" json:"serial_num"`  //套票ID
-	OwnerID    int64   `bson:"OwnerID" json:"owner_id"`      //所属用户ID，系统ID为100
-	Floor      float64 `bson:"Floor" json:"floor"`           //底价
-	Image      string  `bson:"Image" json:"image"`
+	Atlas
+	ID         int64   `bson:"_id" json:"id"`                 // 系统邮票ID
+	AtlasId    int64   `bson:"AltlasId" json:"atlas_id"`      //样本id
+	Rarity     int     `bson:"Rarity" json:"rarity"`          // 稀有度 0.L 1.N 2.R 3.SR 4.SSR
+	Score      float64 `bson:"Score" json:"score"`            // 评分
+	Brightness float64 `bson:"Brightness" json:"brightness"`  //辉度
+	Crack      float64 `bson:"Crack" json:"crack"`            //破损
+	Mark       float64 `bson:"mark" json:"mark"`              //邮戳
+	Stain      float64 `bson:"Stain" json:"stain"`            //污点
+	OwnerID    int64   `bson:"OwnerID" json:"owner_id"`       //所属用户ID，系统ID为100
+	Floor      float64 `bson:"Floor" json:"floor"`            //底价
 	DealIds    []int64 `bson:"DealIds" json:"deal_ids"`       //交易记录
 	CreateTime int64   `bson:"CreateTime" json:"create_time"` //首次入库时间
 	LastModify int64   `bson:"LastModify" json:"last_modify"` // 上次操作时间（收藏/购买/交易）
@@ -48,6 +46,11 @@ func (s *Stamp) Purchase(user_id int64) (err error) {
 	if err = s.Fill(); err != nil {
 		return
 	}
+	if s.OwnerID != constant.SYSTEM_OWNERID {
+		if err = NewUser(s.OwnerID).SellStamp(s.ID); err != nil {
+			return
+		}
+	}
 	s.OwnerID = user_id
 	if err = s.updateOwner(); err != nil {
 		return
@@ -57,7 +60,10 @@ func (s *Stamp) Purchase(user_id int64) (err error) {
 }
 
 func PurchaseStamp(user_id, stamp_id int64) (err error) {
-	return NewStamp(stamp_id).Purchase(user_id)
+	if err = NewStamp(stamp_id).Purchase(user_id); err != nil {
+		return
+	}
+	return NewUser(user_id).BuyStamp(stamp_id)
 }
 
 func CollectStamp(user_id, stamp_id int64) (err error) {

@@ -59,8 +59,8 @@ func (c *UserController) Login() {
 		BaseRequest
 		models.User
 	}
-	var req *Request
-	var err = c.ParseForm(req)
+	var req = new(Request)
+	var err = json.Unmarshal(c.PostBody(), req)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return
@@ -91,8 +91,8 @@ func (c *UserController) Update() {
 		BaseRequest
 		models.User
 	}
-	var req *Request
-	var err = c.ParseForm(req)
+	var req = new(Request)
+	var err = json.Unmarshal(c.PostBody(), req)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return

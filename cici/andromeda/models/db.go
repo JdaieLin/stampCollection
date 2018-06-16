@@ -6,9 +6,11 @@ import (
 )
 
 const (
-	COL_USER  = "user"
-	COL_DEAL  = "deal"
-	COL_STAMP = "stamp"
+	COL_USER   = "user"
+	COL_DEAL   = "deal"
+	COL_STAMP  = "stamp"
+	COL_ATLAS  = "atlas"
+	COL_SERIAL = "serial"
 )
 
 var mdb *mongo.MDB

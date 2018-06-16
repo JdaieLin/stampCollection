@@ -1,6 +1,7 @@
 package mongo
 
 import (
+	mgo "gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -16,6 +17,21 @@ func (m *MDB) UpdateId(collection string, id interface{}, change interface{}) er
 		return db.C(collection).UpdateId(id, change)
 	})
 }
+
+func (m *MDB) IncrID(collection string, selector string, count int, ids ...int64) error {
+	var query = bson.M{"_id": bson.M{"$in": ids}}
+	var change = mgo.Change{
+		Update:    bson.M{"$inc": bson.M{"id": 1}},
+		Upsert:    true,
+		ReturnNew: true,
+	}
+	return m.Query(func(db *MGO) error {
+		var result = bson.M{}
+		_, err := db.C(collection).Find(query).Apply(change, result)
+		return err
+	})
+}
+
 func (m *MDB) Update(collection string, selector, change interface{}) error {
 	return m.Query(func(db *MGO) error {
 		return db.C(collection).Update(selector, change)

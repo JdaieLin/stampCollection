@@ -1,10 +1,11 @@
 package models
 
 import (
-	"cici/andromeda/constant"
 	"errors"
 	"math/rand"
 	"time"
+
+	"cici/andromeda/constant"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -31,19 +32,26 @@ type Chests struct {
 	Date int       `bson:"Date" json:"date"`
 }
 
+type Slot struct {
+	SerialID    int64 `bson:"SerialID" json:"serial_id"`
+	SerialOrder int   `bson:"SerialOrder" json:"serial_order"`
+	CreateTime  int64 `bson:"CreateTime" json:"create_time"`
+}
+
 type User struct {
-	ID            int64       `bson:"_id" json:"id"`                       //系统用户ID
-	Chain         UserChain   `bson:"Chain" json:"chain"`                  //区块链用户信息
-	Name          string      `bson:"Name" json:"name"`                    //显示用户昵称
-	LoginID       string      `bson:"LoginID" json:"login_id"`             //登陆用户名
-	LoginPassword string      `bson:"LoginPassword" json:"login_password"` //登陆密码
-	Mail          string      `bson:"Mail" json:"mail"`                    //用户邮箱
-	Phone         string      `bson:"Phone" json:"phone"`                  //用户手机号
-	IDCard        string      `bson:"IDCard" json:"id_card"`               //用户身份证
-	Coins         int64       `bson:"Coins" json:"coins"`                  //用户铜板
-	Ingots        int64       `bson:"Ingots" json:"ingots"`                //用户元宝
-	Books         []StampBook `bson:"Books" json:"books"`                  //邮册列表
-	Chests        Chests      `bson:"Chests" json:"chests"`
+	ID            int64        `bson:"_id" json:"id"`                       //系统用户ID
+	Chain         UserChain    `bson:"Chain" json:"chain"`                  //区块链用户信息
+	Name          string       `bson:"Name" json:"name"`                    //显示用户昵称
+	LoginID       string       `bson:"LoginID" json:"login_id"`             //登陆用户名
+	LoginPassword string       `bson:"LoginPassword" json:"login_password"` //登陆密码
+	Mail          string       `bson:"Mail" json:"mail"`                    //用户邮箱
+	Phone         string       `bson:"Phone" json:"phone"`                  //用户手机号
+	IDCard        string       `bson:"IDCard" json:"id_card"`               //用户身份证
+	Coins         int64        `bson:"Coins" json:"coins"`                  //用户铜板
+	Ingots        int64        `bson:"Ingots" json:"ingots"`                //用户元宝
+	Books         []*StampBook `bson:"Books" json:"books"`                  //邮票列表
+	Chests        Chests       `bson:"Chests" json:"chests"`
+	Slots         []Slot       `bson:"Slots" json:"slots"`
 }
 
 func NewUser(id int64) *User {
@@ -116,6 +124,13 @@ func (u *User) ChestList() (err error) {
 	return
 }
 
+func (u *User) SweepSync(coins int64) (err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	return DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Coins": u.Coins + coins}})
+}
+
 func (u *User) ChestSync(chests []Chest) (err error) {
 	if err = u.ChestList(); err != nil {
 		return
@@ -134,6 +149,97 @@ func (u *User) ChestSync(chests []Chest) (err error) {
 	return
 }
 
+func (u *User) OnsaleStamps(stamp_ids []int64) (err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	for _, stamp_id := range stamp_ids {
+		for _, book := range u.Books {
+			if book.StampID == stamp_id {
+				book.Status = constant.STATUS_ONSALE
+				break
+			}
+		}
+	}
+	if err = DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Books": u.Books}}); err != nil {
+		return
+	}
+	return
+}
+
+func (u *User) SellStamp(stamp_ids ...int64) (err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	for _, stamp_id := range stamp_ids {
+		for i, book := range u.Books {
+			if book.StampID == stamp_id {
+				u.Books = append(u.Books[:i], u.Books[i+1:]...)
+				break
+			}
+		}
+	}
+	if err = DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Books": u.Books}}); err != nil {
+		return
+	}
+	return
+}
+
+func (u *User) BuyStamp(stamp_ids ...int64) (err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	for _, stamp_id := range stamp_ids {
+		var found bool
+		for _, book := range u.Books {
+			if book.StampID == stamp_id {
+				book.Status = constant.STATUS_DEAL_OWNER
+				break
+			}
+		}
+		if !found {
+			u.Books = append(u.Books, &StampBook{StampID: stamp_id, Status: constant.STATUS_DEAL_OWNER, CreateTime: time.Now().Unix()})
+		}
+	}
+	if err = DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Books": u.Books}}); err != nil {
+		return
+	}
+	return
+}
+
+func (u *User) ListSlot() (slots []Slot, err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	slots = u.Slots
+	return
+}
+
+func (u *User) UnlockSlot(serial_id int64, serial_order int) (err error) {
+	if err = u.Fill(); err != nil {
+		return
+	}
+	var found bool
+	for _, slot := range u.Slots {
+		if slot.SerialID == serial_id && slot.SerialOrder == serial_order {
+			found = true
+			break
+		}
+	}
+	if !found {
+		if u.Coins > 1000 {
+			u.Slots = append(u.Slots, Slot{SerialID: serial_id, SerialOrder: serial_order, CreateTime: time.Now().Unix()})
+			u.Coins -= 1000
+			if err = DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Slots": u.Slots, "Coins": u.Coins}}); err != nil {
+				return
+			}
+		} else {
+			err = errors.New("铜钱余额不足")
+		}
+	}
+	return
+}
+
 func (u *User) CollectStamp(stamp_id int64) (err error) {
 	if err = u.Fill(); err != nil {
 		return
@@ -147,7 +253,7 @@ func (u *User) CollectStamp(stamp_id int64) (err error) {
 	}
 	if !found {
 		if u.Ingots > 200 {
-			u.Books = append(u.Books, StampBook{StampID: stamp_id, Status: constant.STATUS_COLLECT, CreateTime: time.Now().Unix()})
+			u.Books = append(u.Books, &StampBook{StampID: stamp_id, Status: constant.STATUS_COLLECT, CreateTime: time.Now().Unix()})
 			u.Ingots -= 200
 			if err = DB().Update(COL_USER, bson.M{"_id": u.ID}, bson.M{"$set": bson.M{"Books": u.Books, "Ingots": u.Ingots}}); err != nil {
 				return

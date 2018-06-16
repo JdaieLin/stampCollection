@@ -122,7 +122,11 @@ func (this *Controller) WriteErrorResult(result interface{}, err error, code int
 }
 
 func (this *Controller) WriteSuccess(msg string) {
-	this.Ctx.WriteString(`{"success":true,"result":` + msg + `}`)
+	if msg == "" {
+		this.Ctx.WriteString(`{"success":true}`)
+	} else {
+		this.Ctx.WriteString(`{"success":true,"result":` + msg + `}`)
+	}
 }
 
 func (this *Controller) WriteSuccessResult(result interface{}) {

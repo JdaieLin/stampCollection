@@ -13,5 +13,7 @@ func InitRouters() {
 	beego.AutoPrefix("/api", &controllers.ChestController{})
 	beego.AutoPrefix("/api", &controllers.SweepController{})
 	beego.AutoPrefix("/api", &controllers.DealController{})
+	beego.AutoPrefix("/api", &controllers.SlotController{})
+	beego.AutoPrefix("/api", &controllers.BaseController{})
 	beego.AutoPrefix("/api", &controllers.DebugController{})
 }

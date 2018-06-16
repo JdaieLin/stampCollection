@@ -1,7 +1,9 @@
 package models
 
 import (
+	"cici/andromeda/constant"
 	"errors"
+	"fmt"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -34,7 +36,7 @@ func (d *Deal) Accept(user_id int64) (err error) {
 	if err = d.Fill(); err != nil {
 		return
 	}
-	d.Status = 1
+	d.Status = constant.STATUS_CLOSED
 	d.AcceptUser = user_id
 	d.AcceptTime = time.Now().Unix()
 	if err = DB().UpdateId(COL_DEAL, d.ID, bson.M{"$set": bson.M{"Status": d.Status, "AcceptUser": d.AcceptUser, "AcceptTime": d.AcceptTime}}); err != nil {
@@ -46,8 +48,24 @@ func (d *Deal) Accept(user_id int64) (err error) {
 	return
 }
 
-func ListDeals(user_id int64) (deals []*Deal, err error) {
-	if err = DB().All(COL_DEAL, bson.M{"CreateUserID": user_id}, deals); err != nil {
+func ListDeals(user_ids, stamp_ids, deal_ids []int64) (deals []*Deal, err error) {
+	var query = bson.M{}
+	if len(user_ids) != 0 {
+		query["CreateUserID"] = bson.M{
+			"$in": user_ids,
+		}
+	}
+	if len(stamp_ids) != 0 {
+		query["StampIDs"] = bson.M{
+			"$in": stamp_ids,
+		}
+	}
+	if len(deal_ids) != 0 {
+		query["_id"] = bson.M{
+			"$in": deal_ids,
+		}
+	}
+	if err = DB().All(COL_DEAL, query, &deals); err != nil {
 		return
 	}
 	for _, deal := range deals {
@@ -57,7 +75,17 @@ func ListDeals(user_id int64) (deals []*Deal, err error) {
 }
 
 func AcceptDeal(deal_id, user_id int64) (err error) {
-	return NewDeal(deal_id).Accept(user_id)
+	var deal = NewDeal(deal_id)
+	if err = deal.Accept(user_id); err != nil {
+		return
+	}
+	if err = NewUser(deal.CreateUser).SellStamp(deal.StampIDs...); err != nil {
+		return
+	}
+	if err = NewUser(user_id).BuyStamp(deal.StampIDs...); err != nil {
+		return
+	}
+	return
 }
 
 func CreateDeal(stamp_ids []int64, price float64, user_id int64) (deal *Deal, err error) {
@@ -71,6 +99,17 @@ func CreateDeal(stamp_ids []int64, price float64, user_id int64) (deal *Deal, er
 		if stamp.OwnerID != user_id {
 			pass = false
 			break
+		}
+		if len(stamp.DealIds) > 0 {
+			latest_deal := NewDeal(stamp.DealIds[len(stamp.DealIds)-1])
+			if err = latest_deal.Fill(); err != nil {
+				err = fmt.Errorf("deal info unvailable ：%d", latest_deal.ID)
+				return
+			}
+			if latest_deal.Status == constant.STATUS_OPEN {
+				err = fmt.Errorf("can't open new deal for stamp:%d", latest_deal.ID)
+				return
+			}
 		}
 		floor += stamp.Floor
 	}
@@ -86,7 +125,7 @@ func CreateDeal(stamp_ids []int64, price float64, user_id int64) (deal *Deal, er
 		CreateTime: time.Now().Unix(),
 		StampIDs:   stamp_ids,
 		Price:      price,
-		Status:     0,
+		Status:     constant.STATUS_OPEN,
 	}
 	if deal.ID, err = DB().AutoIncId(COL_DEAL); err != nil {
 		return
@@ -97,6 +136,9 @@ func CreateDeal(stamp_ids []int64, price float64, user_id int64) (deal *Deal, er
 	for _, stamp := range stamps {
 		stamp.DealIds = append(stamp.DealIds, deal.ID)
 		stamp.updateDealID()
+	}
+	if err = NewUser(user_id).OnsaleStamps(stamp_ids); err != nil {
+		return
 	}
 	return
 }

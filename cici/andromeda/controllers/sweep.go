@@ -36,6 +36,7 @@ func (c *SweepController) Sync() {
 	}
 	type Request struct {
 		BaseRequest
+		Coins  int64
 		Stamps []Action
 	}
 	var req = new(Request)
@@ -44,5 +45,9 @@ func (c *SweepController) Sync() {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return
 	}
-	c.WriteSuccess("")
+	if err = models.NewUser(req.UserId).SweepSync(req.Coins); err != nil {
+		c.WriteError(constant.ERR_REQ_SERVER, string(c.PostBody()))
+	} else {
+		c.WriteSuccess("")
+	}
 }

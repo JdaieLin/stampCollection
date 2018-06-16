@@ -3,6 +3,7 @@ package controllers
 import (
 	"cici/andromeda/constant"
 	"cici/andromeda/models"
+	"encoding/json"
 )
 
 type DealController struct {
@@ -11,26 +12,21 @@ type DealController struct {
 
 func (c *DealController) List() {
 	type Request struct {
-		// TargetUserID []int64
 		BaseRequest
-		StampIds   []int64 `json:"stamp_id"`
-		Rarity     []int
-		Brightness []int
-		Crack      []int
-		Mark       []int
-		Stain      []int
-		DealID     []int `json:"deal_id"`
-		SerialID   []int `json:"serail_id"`
-		Limit      int
-		Sort       int
+		CreateUserIds []int64 `json:"create_user_id"`
+		StampIds      []int64 `json:"stamp_ids"`
+		DealIDs       []int64 `json:"deal_ids"`
+		SerialID      []int   `json:"serail_id"`
+		Limit         int
+		Sort          int
 	}
-	var req *Request
-	var err = c.ParseForm(req)
+	var req = new(Request)
+	var err = json.Unmarshal(c.PostBody(), req)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return
 	}
-	deals, err := models.ListDeals(req.UserId)
+	deals, err := models.ListDeals(req.CreateUserIds, req.StampIds, req.DealIDs)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_SERVER, err.Error())
 	} else {
@@ -44,8 +40,8 @@ func (c *DealController) Create() {
 		StampIDs []int64 `json:"stamp_ids"`
 		Price    float64
 	}
-	var req *Request
-	var err = c.ParseForm(req)
+	var req = new(Request)
+	var err = json.Unmarshal(c.PostBody(), req)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return
@@ -63,8 +59,8 @@ func (c *DealController) Accept() {
 		BaseRequest
 		DealID int64 `json:"deal_id"`
 	}
-	var req *Request
-	var err = c.ParseForm(req)
+	var req = new(Request)
+	var err = json.Unmarshal(c.PostBody(), req)
 	if err != nil {
 		c.WriteError(constant.ERR_REQ_BODY, string(c.PostBody()))
 		return
