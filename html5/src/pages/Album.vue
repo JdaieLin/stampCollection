@@ -86,7 +86,7 @@
             <span class="type">{{currentStamp.type}}</span>
             <span class="num">剩余量：{{currentStamp.remain}}/{{currentStamp.volume}}</span>
           </div>
-          <div class="stamp-desc">{{currentStamp.desc}}</div>
+          <div class="stamp-desc">{{currentStamp.expain}}</div>
           <template v-if="currentAlbumTab!='year'">
             <div class="stamp-action" v-if="currentStamp.boughtType">
               <span class="action-btn green" @click="openSellModal">交易</span>
@@ -683,6 +683,7 @@ export default {
     .stamp-desc{
       width: 100%;
       height: 90px;
+      margin-top: 10px;
       padding: 10px 0;
       font-size: 12px;
       text-align: left;
