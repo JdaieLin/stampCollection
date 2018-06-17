@@ -6,56 +6,6 @@ import "./ERC721/ERC721Receiver.sol";
 import "./math/SafeMath.sol";
 import "./AddressUtils.sol";
 
-contract Ownable {
-  address public owner;
-
-
-  constructor() public {
-    owner = msg.sender;
-  }
-
-  modifier onlyOwner() {
-    require(msg.sender == owner);
-    _;
-  }
-
-  function transferOwnership(address newOwner) public onlyOwner {
-    if (newOwner != address(0)) {
-      owner = newOwner;
-    }
-  }
-
-}
-
-contract Pausable is Ownable {
-  event Pause();
-  event Unpause();
-
-  bool public paused = false;
-
-  modifier whenNotPaused() {
-    require(!paused);
-    _;
-  }
-
-  modifier whenPaused {
-    require(paused);
-    _;
-  }
-
-  function pause() onlyOwner public whenNotPaused returns (bool) {
-    paused = true;
-    emit Pause();
-    return true;
-  }
-
-  function unpause() onlyOwner public whenPaused returns (bool) {
-    paused = false;
-    emit Unpause();
-    return true;
-  }
-}
-
 contract StampAccessControl {
     event ContractUpgrade(address newContract);
 
@@ -140,6 +90,7 @@ contract StampDataSource {
     //Information about a stamp
     struct Stamp {
         uint32 typeId;
+        uint256 price;
         uint8 appearance;
     }
     //Information on the stamp section
@@ -163,7 +114,7 @@ contract StampDataSource {
 
 
 
-contract ERC721BasicToken is ERC721Basic {
+contract ERC721BasicToken is ERC721Basic, StampAccessControl {
   using SafeMath for uint256;
   using AddressUtils for address;
 
@@ -238,7 +189,7 @@ contract ERC721BasicToken is ERC721Basic {
    * @param _to address to be approved for the given token ID
    * @param _tokenId uint256 ID of the token to be approved
    */
-  function approve(address _to, uint256 _tokenId) public {
+  function approve(address _to, uint256 _tokenId) public whenNotPaused{
     address owner = ownerOf(_tokenId);
     require(_to != owner);
     require(msg.sender == owner || isApprovedForAll(owner, msg.sender));
@@ -264,7 +215,7 @@ contract ERC721BasicToken is ERC721Basic {
    * @param _to operator address to set the approval
    * @param _approved representing the status of the approval to be set
    */
-  function setApprovalForAll(address _to, bool _approved) public {
+  function setApprovalForAll(address _to, bool _approved) public whenNotPaused{
     require(_to != msg.sender);
     operatorApprovals[msg.sender][_to] = _approved;
     emit ApprovalForAll(msg.sender, _to, _approved);
@@ -288,7 +239,7 @@ contract ERC721BasicToken is ERC721Basic {
    * @param _to address to receive the ownership of the given token ID
    * @param _tokenId uint256 ID of the token to be transferred
   */
-  function transferFrom(address _from, address _to, uint256 _tokenId) public canTransfer(_tokenId){
+  function transferFrom(address _from, address _to, uint256 _tokenId) public whenNotPaused canTransfer(_tokenId){
     require(_from != address(0));
     require(_to != address(0));
 
@@ -316,6 +267,7 @@ contract ERC721BasicToken is ERC721Basic {
     uint256 _tokenId
   )
     public
+    whenNotPaused
     canTransfer(_tokenId)
   {
     // solium-disable-next-line arg-overflow
@@ -341,6 +293,7 @@ contract ERC721BasicToken is ERC721Basic {
     bytes _data
   )
     public
+    whenNotPaused
     canTransfer(_tokenId)
   {
     transferFrom(_from, _to, _tokenId);
@@ -613,11 +566,12 @@ contract ERC721TokenImplement is StampDataSource, ERC721, ERC721BasicToken {
   }
 }
 
-contract StampBase is StampAccessControl, ERC721TokenImplement{
+contract StampBase is ERC721TokenImplement{
     event CreateNewStamp(uint32 typeId, uint8 appearance);
 
     function _createNewStamp(
         uint32 _typeId,
+        uint256 _price,
         uint8 _appearance
     )
         internal
@@ -627,6 +581,7 @@ contract StampBase is StampAccessControl, ERC721TokenImplement{
 
         Stamp memory _stamp = Stamp({
             typeId:_typeId,
+            price:_price,
             appearance:_appearance
         });
         newTokenId = stamps.push(_stamp) - 1;
@@ -644,6 +599,7 @@ contract StampBase is StampAccessControl, ERC721TokenImplement{
 contract StampTransaction is StampBase {
      
     struct Trasaction {
+        uint256 startedAt;
         uint128 price;
         address seller;
     }
@@ -653,8 +609,9 @@ contract StampTransaction is StampBase {
     event TransactionCreated(uint256 tokenId, uint256 price);
     event TransactionSuccessful(uint256 tokenId, uint256 price, address buyer);
     event TransactionCancelled(uint256 tokenId);
+    event TransactionTimeOut(uint256 tokenId, uint256 startedAt, address seller);
     
-    function _addTransactionn(uint256 _tokenId, Trasaction _tracsaction) internal {
+    function _addTransaction(uint256 _tokenId, Trasaction _tracsaction) internal {
         tokenIdToTransaction[_tokenId] = _tracsaction;
 
         emit TransactionCreated(
@@ -682,25 +639,34 @@ contract StampTransaction is StampBase {
         require(_buyPrice == price);
         
         _removeTransaction(_tokenId);
-        seller.transfer(_buyPrice-100);
+        seller.transfer(_computePrice(_buyPrice));
 
         emit TransactionSuccessful(_tokenId, _buyPrice, msg.sender);
     }
     
-    function createTransaction(uint256 _tokenId, uint256 _price, address _seller) public
+    function _computePrice(uint256 _price) internal pure returns (uint256) {
+        uint256 price = _price * 9900 / 10000;
+        if (price > 500000000000000000) {
+            price = 500000000000000000;
+        }
+        return price;
+    }
+    
+    function createTransaction(uint256 _tokenId, uint256 _price, address _seller, uint256 _startedAt) public whenNotPaused
     {
         require(_price == uint256(uint128(_price)));
         require(ownerOf(_tokenId) == msg.sender);
 
         transferFrom(msg.sender, address(this), _tokenId);
         Trasaction memory tracsaction = Trasaction(
+            _startedAt,
             uint128(_price),
             _seller
         );
-        _addTransactionn(_tokenId, tracsaction);
+        _addTransaction(_tokenId, tracsaction);
     }
 
-    function buy(uint256 _tokenId) external payable
+    function buy(uint256 _tokenId) external payable whenNotPaused
     {
         _bid(_tokenId, msg.value);
         operatorApprovals[address(this)][msg.sender] = true;
@@ -729,7 +695,7 @@ contract RepoTransaction is StampBase{
     
     event RepoIngotsSuccessful(uint256 tokenId, uint256 repoCount, address seller);
 
-    function repoIngotsTransaction(uint256 _tokenId, uint256 _repoCount) public{
+    function repoIngotsTransaction(uint256 _tokenId, uint256 _repoCount) public whenNotPaused{
         require(_owns(msg.sender, _tokenId));
         transferFrom(msg.sender, address(this), _tokenId);
         RepoIngots memory repoIngotsInfo = RepoIngots(
@@ -753,14 +719,11 @@ contract RepoTransaction is StampBase{
 contract StampMinting is StampTransaction, RepoTransaction {
     uint256 public constant STAMP_SET_RELEASE_LIMIT = 3000;
     uint256 public constant STAMP_TYPE_RELEASE_LIMIT = 30000;
-    uint256 public constant STAMP_CREATION_LIMIT = 500000;
     
     uint256 public setReleasedCount;
     uint256 public stampTypeReleasedCount;
-    uint256 public promoCreatedCount;
-    uint256 public stampCreatedCount;
 
-    function releaseNewStampSet(uint16 _setId, uint32[] _typeIds) external onlyCOO{
+    function releaseNewStampSet(uint16 _setId, uint32[] _typeIds) external whenNotPaused onlyCOO{
         require(setReleasedCount < STAMP_SET_RELEASE_LIMIT);
         require(!isExistSet[_setId]);
         require(_setId > 0);
@@ -782,7 +745,7 @@ contract StampMinting is StampTransaction, RepoTransaction {
     
     function releaseNewStampInfo(uint32 _setId, 
     uint32 _typeId,  uint32 _totalAmount, 
-    uint16 _year, uint16 _idOfSet, bytes32 _name) external onlyCOO{
+    uint16 _year, uint16 _idOfSet, bytes32 _name) external whenNotPaused onlyCOO returns (uint32){
         require(stampTypeReleasedCount < STAMP_TYPE_RELEASE_LIMIT);
         require(!isExistStampType[_typeId]);
         StampInfo memory stampInfo = StampInfo({
@@ -797,6 +760,7 @@ contract StampMinting is StampTransaction, RepoTransaction {
         stampInfos.push(stampInfo);
         TypeIdToStampInfo[_typeId] = stampInfo;
         isExistStampType[_typeId] = true;
+        return _typeId;
     }
 
     function releaseNewStampToTransaction(
@@ -804,59 +768,47 @@ contract StampMinting is StampTransaction, RepoTransaction {
         uint8 _appearance
         ) 
         external 
+        whenNotPaused
         onlyCOO 
         returns (uint256)
     {
-        require(isExistStampType[_typeId]);
-        require(stampCreatedCount < STAMP_CREATION_LIMIT);
-
-        uint256 tokenId = _createNewStamp(_typeId, _appearance);
-        _mint(address(this), tokenId);
-        
         StampInfo memory stampInfo = TypeIdToStampInfo[_typeId];
+        uint32 remainingAmount = stampInfo.remainingAmount;
+        require(remainingAmount>0);
+        require(isExistStampType[_typeId]);
+
         uint32 totalAmount = stampInfo.totalAmount;
         uint16 year = stampInfo.year;
+        uint256 price = _computeStampPrice(year, totalAmount, _appearance);
+        uint256 tokenId = _createNewStamp(_typeId, price, _appearance);
+        _mint(address(this), tokenId);
         
-        uint256 price = _computeStampPrice(year, totalAmount);
         Trasaction memory tracsaction = Trasaction(
+            now,
             uint128(price),
             address(this)
         );
-        _addTransactionn(tokenId, tracsaction);
+        _addTransaction(tokenId, tracsaction);
         
-        stampCreatedCount++;
+        stampInfo.remainingAmount--;
         return tokenId;
     }
 
-    function _computeStampPrice(uint16 _year, uint256 _totalCirculation) internal pure returns (uint256) {
-        uint256 price = 33*(10**7)/((_year - 1959)*_totalCirculation);
-        return price;
+    function _computeStampPrice(uint16 _year, uint256 _totalCirculation, uint8 _appearance) internal pure returns (uint256 price) {
+        price= 33*(10**3)/((_year - 1959)*_totalCirculation);
+        if (_appearance == 0) {
+            price = 60000*price;
+        }
+        if (_appearance == 1) {
+            price = 1016*price;
+        }
+        if (_appearance == 2) {
+            price = 600*price;
+        }
+        if (_appearance == 3) {
+            price = 250*price;
+        }
     }
-    
-        // function releaseNewPromoStampToAuction(
-    //     uint32 _stampId,
-    //     uint16 _year,
-    //     uint16 _setId,
-    //     uint8 _memberOfSetId,
-    //     uint32 _totalAmount,
-    //     uint32 _remainingAmount,
-    //     bytes32 _name,
-    //     address _owner,
-    //     uint8 _appearance) 
-    //     external 
-    //     onlyCOO 
-    // {
-    //     address stampOwner = _owner;
-    //     if (stampOwner == address(0)) {
-    //          stampOwner = cooAddress;
-    //     }
-    //     require(promoCreatedCount < PROMO_CREATION_LIMIT);
-
-            
-    //     _createNewStamp(_stampId, _totalAmount, _remainingAmount, _name, _year, _setId, _memberOfSetId, _appearance);
-    //     promoCreatedCount++;
-        
-    // }
 }
 
 contract StampCollection is StampMinting {
@@ -892,12 +844,14 @@ contract StampCollection is StampMinting {
         view
         returns (
         uint32 typeId,
-        uint8 appearance
+        uint8 appearance,
+        uint256 price
     ) 
     {
         Stamp storage stamp = stamps[_typeId];
         typeId = stamp.typeId;
         appearance = stamp.appearance;
+        price = stamp.price;
     }
 
     function getStampSetInfo(uint16 _setId) public view returns(uint16 setId, uint32[] typeIds){

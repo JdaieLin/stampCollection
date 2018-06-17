@@ -2,7 +2,6 @@ var StampCollection = artifacts.require("./StampCollection.sol");
 
 contract('StampCollection', function(accounts) {
   var stamp;
-  var stampCount_;
 
   it("发布合约，验证发布的一些初始化信息", function() {
     return StampCollection.deployed().then(function(instance) {
@@ -13,9 +12,6 @@ contract('StampCollection', function(accounts) {
       return stamp.STAMP_TYPE_RELEASE_LIMIT.call();
     }).then(function(typeLimit) {
       assert.equal(typeLimit, '30000', "邮票类型限制为30000");
-      return stamp.STAMP_CREATION_LIMIT.call();
-    }).then(function(promoLimit) {
-      assert.equal(promoLimit, '500000', "邮票发行个数限制为500000");
       return stamp.paused.call();
     }).then(function(paused) {
       assert.equal(paused, false, "初始状态为未暂停");
@@ -60,25 +56,32 @@ contract('StampCollection', function(accounts) {
 
 
   //此处的测试数据依据上面的测试数据
-  it("ERC721相关功能测试", function() {
+  it("ERC721验证信息功能测试", function() {
+    //获取项目名称
     return stamp.name.call().then(function(name) {
       assert.equal(name, "StampToken", "name应该为StampToken");
+      //获取ID标识
       return stamp.symbol.call();
     }).then(function(symbol) {
       assert.equal(symbol, "ST", "symbol应该为ST");
+      //获取token的总量
       return stamp.totalSupply.call();
     }).then(function(totalSupply) {
       assert.equal(totalSupply, 3, "totalSupply应该为3");
+      //获取stamp合约地址index为2的tokenId
       return stamp.tokenOfOwnerByIndex.call(stamp.address, 2);
     }).then(function(tokenId) {
       assert.equal(tokenId, 2, "index为2的tokenId为2");
+      //获取index为1的tokenId
       return stamp.tokenByIndex.call(1);
     }).then(function(tokenId) {
       assert.equal(tokenId, 1, "index为1的tokenId为1");
+      //获取tokenId为0的用户地址
       return stamp.ownerOf.call(0);
     }).then(function(ownerAddress) {
       //判断拥有着是不是合约地址
       assert.equal(ownerAddress, stamp.address, "tokenId为0的邮票应该归合约所有");
+      //判断tokenId为0是否存在
       return stamp.exists.call(0);
     }).then(function(havaExisted) {
       assert.equal(havaExisted, true, "tokenId为0的邮票已经发布");
@@ -100,19 +103,10 @@ contract('StampCollection', function(accounts) {
       return stamp.isExistStampType.call(33);
     }).then(function(existed) {
       assert.equal(existed, true, "typeId = 33已经发布，但是isExistStampType返回false");
-      //获取总共发行的邮票个数
-      return stamp.stampCreatedCount.call();
-    }).then(function(stampCount) {
-      //保存邮票个数
-      stampCount_ = stampCount;
-      console.log('stampCount = '+stampCount);
-      //获取发行的邮票总量
       return stamp.totalSupply.call();
     }).then(function(totalCount) {
-      console.log('totalCount = '+totalCount);
-      console.log('stampCount_ = '+totalCount);
       //判断邮票总量和创建的邮票个数相等
-      assert.equal(totalCount.toNumber(), stampCount_, "创建的个数和totalSupply不一致");
+      assert.equal(totalCount.toNumber(), 3, "创建的个数和totalSupply不一致");
       //获取stamp合约地址的index为0的tokenId
       return stamp.tokenOfOwnerByIndex.call(stamp.address,0);
     }).then(function(tokenId) {
@@ -140,20 +134,46 @@ contract('StampCollection', function(accounts) {
     });
   });
 
-  it("购买一枚邮票", function() {
-    return StampCollection.deployed().then(function(instance) {
-      stamp = instance;
-      return stamp.transactionInfo(0);
-    }).then(function(result) {
-      console.log('price = ' + result[0]);
-      //发行邮票，并且创建交易
-        return stamp.buy(0,{from:accounts[2], value:result[0]});
+
+    it("ERC721授权功能验证", function() {
+    return stamp.transactionInfo(0).then(function(result) {
+      console.log('tokenId 0 price = ' + result[0]);
+      return stamp.buy(0,{from:accounts[1], value:result[0]});
     }).then(function() {
         return stamp.ownerOf.call(0);
     }).then(function(ownerAddress) {
-      assert.equal(ownerAddress, accounts[2], "使用accounts[2]购买，但是tokenId为0的所有者部位accounts[2]");
-      return stamp.transactionInfo(0);
+      assert.equal(ownerAddress, accounts[1], "使用accounts[3]购买，但是tokenId为0的所有者部位accounts[3]");
+      return stamp.setApprovalForAll(accounts[2],true,{from:accounts[1]})
     }).then(function(result) {
+      //发行邮票，并且创建交易
+      return stamp.isApprovedForAll(accounts[1],accounts[2]);
+    }).then(function(isApproved) {
+        assert.equal(isApproved, true, "合约地址授权给accounts[2]失败");
+        return stamp.approve(accounts[2], 0, {from:accounts[1]});
+    }).then(function() {
+      return stamp.getApproved(0);
+    }).then(function(approvedAddress) {
+      assert.equal(approvedAddress, accounts[2], "使用accounts[2]购买，但是tokenId为0的所有者部位accounts[2]");
+    });
+  });
+
+
+  it("购买一枚邮票", function() {
+    return StampCollection.deployed().then(function(instance) {
+      stamp = instance;
+      return stamp.transactionInfo(1);
+    }).then(function(result) {
+      console.log('price = ' + result[0]);
+      //发行邮票，并且创建交易
+        return stamp.buy(1,{from:accounts[3], value:result[0]});
+    }).then(function() {
+        return stamp.ownerOf.call(1);
+    }).then(function(ownerAddress) {
+      assert.equal(ownerAddress, accounts[3], "使用accounts[3]购买，但是tokenId为0的所有者部位accounts[3]");
+      return stamp.transactionInfo(1);
+    }).then(function(result) {
+      console.log('result = ' + JSON.stringify(result));
+      var price = result[0].toNumber();
         console.log('price = ' + result[0]);
         console.log('seller = ' + result[1]);
         assert.equal(result[0], 0, "未删除交易");
@@ -165,28 +185,40 @@ contract('StampCollection', function(accounts) {
   it("用户创建一个交易，", function() {
     return StampCollection.deployed().then(function(instance) {
       stamp = instance;
-      return stamp.createTransaction(0, 800000, accounts[2], {from:accounts[2]});
-    }).then(function() {
-        return stamp.transactionInfo(0);
+      return stamp.createTransaction(1, 80000, accounts[3], {from:accounts[3]});
+    }).then(function() {                
+        return stamp.transactionInfo(1);
     }).then(function(result) {
-      assert.equal(result[0], 800000, "发布的交易价格不是800000");
-      assert.equal(result[1], accounts[2], "seller不是accounts[2]");
-      return stamp.buy(0,{from:accounts[3], value:result[0]});
+      assert.equal(result[0], 80000, "发布的交易价格不是800000");
+      assert.equal(result[1], accounts[3], "seller不是accounts[2]");
+      return stamp.buy(1,{from:accounts[4], value:result[0]});
     }).then(function() {
-      return stamp.ownerOf.call(0);
+      return stamp.ownerOf.call(1);
     }).then(function(ownerAddress) {
-      assert.equal(ownerAddress, accounts[3], "使用accounts[3]购买，但是tokenId为0的所有者部位accounts[3]");
+      assert.equal(ownerAddress, accounts[4], "使用accounts[3]购买，但是tokenId为0的所有者部位accounts[3]");
     });
   });
 
 //此处的测试数据依据上面的测试数据
   it("用户发起使用邮票换元宝交易--系统回购", function() {
-    return stamp.repoIngotsTransaction(0, 123456, {from:accounts[3]}).then(function() {
-      return stamp.repoIngotsInfo(0);
+    return stamp.repoIngotsTransaction(1, 123456, {from:accounts[4]}).then(function() {
+      return stamp.repoIngotsInfo(1);
     }).then(function(result) {
       assert.equal(result[1], 123456, "换购的元宝数量不对");
-      assert.equal(result[2], accounts[3], "换购的卖方地址不对");
+      assert.equal(result[2], accounts[4], "换购的卖方地址不对");
     });
   });
 
+  it("验证CFO提取以太币", function() {
+    return stamp.setCFO(accounts[5],{from:accounts[0]}).then(function() {
+      return stamp.cfoAddress.call();
+    }).then(function(cfoAddress) {
+      assert.equal(cfoAddress, accounts[5], "初始状态为未暂停");
+      return stamp.withdrawBalance({from:accounts[5]});
+    }).then(function(result) {
+      return web3.fromWei(web3.eth.getBalance(accounts[5]));
+    }).then(function(balance) {
+      console.log("cfoAddress-balance = "+balance);
+    });
+  });
 });
